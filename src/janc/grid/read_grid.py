@@ -1,112 +1,103 @@
 import jax.numpy as jnp
-import scipy.io as sio
-import CGNS.MAP
-import CGNS.PAT.cgnsutils as CGU
+import numpy as np
+import os
 
-J = 1.0
-dxi_dx = 1.0
-deta_dx = 0.0
-dxi_dy = 0.0
-deta_dy = 1.0
-nx_L = -1.0
-ny_L = 0.0
-nx_R = 1.0
-ny_R = 0.0
-nx_B = 0.0
-ny_B = -1.0
-nx_U = 0.0
-ny_U = 1.0
-dxi = 1.0
-deta = 1.0
+metrics={'ξ-n_x':1.0,'ξ-n_y':0.0,
+         'η-n_x':0.0,'η-n_y':1.0,
+         'ξ-dl':1.0,'η-dl':1.0,
+         'J':1.0,'Jc':1.0,
+         'dξ_dx':1.0,'dη_dx':0.0,
+         'dξ_dy':0.0,'dη_dy':1.0,
+         'left_n_x':1.0,'left_n_y':0.0,
+         'right_n_x':-1.0,'right_n_y':0.0,
+         'bottom_n_x':0.0,'bottom_n_y':1.0,
+         'top_n_x':0.0,'top_n_y':-1.0}
+dx = 1.0
+dy = 1.0
+nx = 5
+ny = 5
 
-def read_CGNSt(file_path):
-    global J,dxi_dx,deta_dx,dxi_dy,deta_dy,nx_U,ny_U,dxi,deta
-    data = sio.loadmat(file_path)
-    J = data['J'][None,:,:]
-    dxi_dx = data['kx'][None,:,:]
-    dxi_dy = data['ky'][None,:,:]
-    deta_dx = data['vx'][None,:,:]
-    deta_dy = data['vy'][None,:,:]
-    nx_U = data['n'][:,0][None,3:-3,None]
-    ny_U = data['n'][:,1][None,3:-3,None]
-    dxi = 0.0095
-    deta = 0.0095
+def read_dat(file_path):
+    raw_grid = np.loadtxt(file_path, usecols=(0,1))
+    nx, ny = raw_grid[0,0],raw_grid[0,1]
+    X = jnp.array(raw_grid[1:,0].reshape((nx,ny)))
+    Y = jnp.array(raw_grid[1:,1].reshape((nx,ny)))
+    return X, Y
 
-
-
-def compute_metrics(X, Y):
-    Ni, Nj = X.shape
-    dxi = 1.0 / (Ni - 1)
-    deta = 1.0 / (Nj - 1)
-    # 中心差分（内部）
-    dx_dxi = (X[2:,:] - X[:-2,:]) / (2*dxi)
-    dx_dxi = jnp.concatenate([(X[1:2,:]-X[0:1,:])/dxi,dx_dxi,(X[-1:,:]-X[-2:-1,:])/dxi],axis=0)
-
-    dx_deta = (X[:,2:] - X[:,:-2]) / (2*deta)
-    dx_deta = jnp.concatenate([(X[:,1:2]-X[:,0:1])/deta,dx_deta,(X[:,-1:]-X[:,-2:-1])/deta],axis=1)
-
-    dy_dxi = (Y[2:,:] - Y[:-2,:]) / (2*dxi)
-    dy_dxi = jnp.concatenate([(Y[1:2,:]-Y[0:1,:])/dxi,dy_dxi,(Y[-1:,:]-Y[-2:-1,:])/dxi],axis=0)
-
-    dy_deta = (Y[:,2:] - Y[:,:-2]) / (2*deta)
-    dy_deta = jnp.concatenate([(Y[:,1:2]-Y[:,0:1])/deta,dy_deta,(Y[:,-1:]-Y[:,-2:-1])/deta],axis=1)
-    
-    #边界法向量计算
-    #left_boundary
-    theta_L = jnp.atan(dy_deta[0,:]/dx_deta[0,:]) + jnp.pi/2
-    #right_boundary
-    theta_R = jnp.atan(dy_deta[-1,:]/dx_deta[-1,:]) - jnp.pi/2
-    #bottom_boundary
-    theta_B = jnp.atan(dy_dxi[:,0]/dx_dxi[:,0]) + jnp.pi/2
-    #up_boundary
-    theta_U = jnp.atan(dy_dxi[:,-1]/dx_dxi[:,-1]) - jnp.pi/2
-    
-    nx_L = jnp.cos(theta_L)[None,None,3:-3]
-    ny_L = jnp.sin(theta_L)[None,None,3:-3]
-    
-    nx_R = jnp.cos(theta_R)[None,None,3:-3]
-    ny_R = jnp.sin(theta_R)[None,None,3:-3]
-    
-    nx_B = jnp.cos(theta_B)[None,3:-3,None]
-    ny_B = jnp.sin(theta_B)[None,3:-3,None]
-    
-    nx_U = jnp.cos(theta_U)[None,3:-3,None]
-    ny_U = jnp.sin(theta_U)[None,3:-3,None]
-    
-    
-    
-    # Jacobian（内部节点）
-    J = dx_dxi * dy_deta - dx_deta * dy_dxi
-    dxi_dx = dy_deta/J
-    deta_dx = -dy_dxi/J
-    dxi_dy = -dx_deta/J
-    deta_dy = dx_dxi/J
-    
-    #J = jnp.pad(J,pad_width=(2,2),mode='edge')[None,:,:]
-    #dxi_dx = jnp.pad(dxi_dx,pad_width=(2,2),mode='edge')[None,:,:]
-    #deta_dx = jnp.pad(deta_dx,pad_width=(2,2),mode='edge')[None,:,:]
-    #dxi_dy = jnp.pad(dxi_dy,pad_width=(2,2),mode='edge')[None,:,:]
-    #deta_dy = jnp.pad(deta_dy,pad_width=(2,2),mode='edge')[None,:,:]
-    
-    return J[None,:,:], dxi_dx[None,:,:], deta_dx[None,:,:], dxi_dy[None,:,:], deta_dy[None,:,:], dxi, deta,nx_L,ny_L,nx_R,ny_R,nx_U,ny_U,nx_B,ny_B
-
-
-def read_CGNS(file_path=None):
-    global J, dxi_dx, deta_dx, dxi_dy, deta_dy, dxi, deta, nx_L,ny_L,nx_R,ny_R,nx_U,ny_U,nx_B,ny_B
-    if file_path is not None:
-        tree, links, paths = CGNS.MAP.load(file_path)
-        gc_path = "/Base/dom-1/GridCoordinates"
-        # 拿到那个节点（节点列表）
-        gridcoord = CGU.getNodeByPath(tree, gc_path)
-        if gridcoord is None:
-            raise KeyError(f"路径 {gc_path} 找不到节点")
+def set_grid(grid_config):
+    global metrics,dx,dy,nx,ny
+    if 'grid_file_path' in grid_config:
+        grid_path = read_dat(grid_config['grid_file_path'])
+        _, ext = os.path.splitext(grid_path)
+        assert ext.lower() == '.dat', "janc only read grid file with Pointwise_R18+【.dat】 format."
+        if not os.path.isfile(grid_path):
+            raise FileNotFoundError('No grid file detected in the specified directory.')
+        X,Y = read_dat(grid_path)
+        nx,ny = X.shape[0]-1,X.shape[1]-1
+        x_f,y_f = X[:,1:],Y[:,1:]
+        x_b,y_b = X[:,:-1],Y[:,:-1]
+        ξ_dx = x_f - x_b
+        dx_dη = 0.5*(ξ_dx[1:,:]+ξ_dx[:-1,:])
+        ξ_dy = y_f - y_b
+        dy_dη = 0.5*(ξ_dy[1:,:]+ξ_dy[:-1,:])
+        ξ_dl = jnp.sqrt(ξ_dx**2+ξ_dy**2)
+        theta = jnp.atan(ξ_dy/ξ_dx)
+        theta = theta + (theta<0)*jnp.pi
+        normal_theta = theta - jnp.pi/2
+        ξ_n_x = jnp.cos(normal_theta)
+        ξ_n_y = jnp.sin(normal_theta)
+        left_n_x,left_n_y = ξ_n_x[:,0:1],ξ_n_y[:,0:1]
+        right_n_x,right_n_y = -ξ_n_x[:,-1:],ξ_n_y[:,-1:]
         
-        # 然后分别取子节点 CoordinateX 和 CoordinateY
-        node_x = CGU.getNodeByPath(gridcoord, "CoordinateX")
-        node_y = CGU.getNodeByPath(gridcoord, "CoordinateY")
-        if node_x is None or node_y is None:
-            raise KeyError("在该 GridCoordinates 组下未找到 CoordinateX/CoordinateY")
+        x_f,y_f = X[1:,:],Y[1:,:]
+        x_b,y_b = X[:-1,:],Y[:-1,:]
+        η_dx = x_f - x_b
+        dx_dξ = 0.5*(η_dx[:,1:]+η_dx[:,:-1])
+        η_dy = y_f - y_b
+        dy_dξ = 0.5*(η_dy[:,1:]+η_dy[:,:-1])
+        η_dl = jnp.sqrt(η_dx**2+η_dy**2)
+        theta = jnp.atan(η_dy/η_dx)
+        normal_theta = theta + jnp.pi/2#(theta<0)*jnp.pi/2 - (theta>=0)*jnp.pi/2
+        η_n_x = jnp.cos(normal_theta)
+        η_n_y = jnp.sin(normal_theta)
+        bottom_n_x,bottom_n_y = η_n_x[0:1,:],η_n_y[0:1,:]
+        top_n_x,top_n_y = η_n_x[-1:,:],-η_n_y[-1:,:]
+                
+        x1,y1 = X[:-1,1:],Y[:-1,1:]
+        x2,y2 = X[:-1,:-1],Y[:-1,:-1]
+        x3,y3 = X[1:,:-1],Y[1:,:-1]
+        x4,y4 = X[1:,1:],Y[1:,1:]
         
-        X = jnp.array(node_x[1])
-        Y = jnp.array(node_y[1])
-        J, dxi_dx, deta_dx, dxi_dy, deta_dy, dxi, deta, nx_L,ny_L,nx_R,ny_R,nx_U,ny_U,nx_B,ny_B = compute_metrics(X, Y)
+        J = 0.5*jnp.abs(x1*y2+x2*y3+x3*y4+x4*y1-(x2*y1+x3*y2+x4*y3+x1*y4))
+        
+        Jc = dx_dξ * dy_dη - dx_dη * dy_dξ
+        dξ_dx = dy_dη/Jc
+        dη_dx = -dy_dξ/Jc
+        dξ_dy = -dx_dη/Jc
+        dη_dy = dx_dξ/Jc
+        
+        metrics={'ξ-n_x':ξ_n_x[None,:,:],'ξ-n_y':ξ_n_y[None,:,:],
+                 'η-n_x':η_n_x[None,:,:],'η-n_y':η_n_y[None,:,:],
+                 'ξ-dl':ξ_dl[None,:,:],'η-dl':η_dl[None,:,:],
+                 'J':J[None,:,:],'Jc':jnp.pad(Jc[None,:,:],((0,0),(3,3),(3,3)),mode='edge'),
+                 'dξ_dx':jnp.pad(dξ_dx[None,:,:],((0,0),(3,3),(3,3)),mode='edge'),
+                 'dη_dx':jnp.pad(dη_dx[None,:,:],((0,0),(3,3),(3,3)),mode='edge'),
+                 'dξ_dy':jnp.pad(dξ_dy[None,:,:],((0,0),(3,3),(3,3)),mode='edge'),
+                 'dη_dy':jnp.pad(dη_dy[None,:,:],((0,0),(3,3),(3,3)),mode='edge'),
+                 'left_n_x':left_n_x[None,:,:],'left_n_y':left_n_y[None,:,:],
+                 'right_n_x':right_n_x[None,:,:],'right_n_y':right_n_y[None,:,:],
+                 'bottom_n_x':bottom_n_x[None,:,:],'bottom_n_y':bottom_n_y[None,:,:],
+                 'top_n_x':top_n_x[None,:,:],'top_n_y':top_n_y[None,:,:]}
+    else:
+        Lx = grid_config['Lx']
+        Ly = grid_config['Ly']
+        nx = grid_config['Nx']
+        ny = grid_config['Ny']
+        dx = Lx/nx
+        dy = Ly/ny
+        metrics['ξ-dl'] = dy
+        metrics['η-dl'] = dx
+        metrics['J'] = dx*dy
+        metrics['Jc'] = dx*dy
+        metrics['dξ_dx'] = 1/dx
+        metrics['dη_dy'] = 1/dy
