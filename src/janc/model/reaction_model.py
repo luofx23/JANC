@@ -55,8 +55,26 @@ def set_reaction(reaction_config,nondim_config=None):
         ns = ReactionParams['num_of_species']
         ni = ReactionParams['num_of_inert_species']
         nr = ns - ni
+        def reaction_source_terms(U,aux,dt,theta=None):
+            rho = U[0:1]
+            Y = fill_Y(U[4:]/rho)
+            rhoY = rho*Y
+            T = aux[1:2]
+            X = rhoY/(Mex)
+            A, b = construct_matrix_equation(T,X,dt)
+            x = jnp.linalg.solve(A,b)
+            drhoY = jnp.transpose(x[:,:,:,0],(2,0,1))
+            dY = drhoY/rho
+            dY = jnp.clip(dY,min=-Y[0:-1],max=1-Y[0:-1])
+            S = jnp.concatenate([jnp.zeros_like(U[:4]),rho*dY],axis=0)
+            return S
+    else:
+        def reaction_source_terms(U,aux,dt,theta=None):
+            user_source = self_defined_source(U,aux,dt,theta)
+            return user_source*dt
      
     species_M,Mex,Tcr,_,_,_,_,_,_,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config)
+    return reaction_source_terms
 
 
 def get_gibbs_single(Tcr,h_cof_low,h_cof_high,s_cof_low,s_cof_high,logcof_low,logcof_high,T):
@@ -149,6 +167,7 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
