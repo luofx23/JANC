@@ -7,7 +7,6 @@ from .finite_difference import d_dx_dict,d_dy_dict
 from .riemann_solver import riemann_solver_dict
 from .flux_splitting import split_flux_dict
 from ..model import thermo_model, transport_model
-from ..grid import read_grid
 
 solver_type = 'godunov'
 interface_reconstruction = 'WENO5-JS'
@@ -16,40 +15,21 @@ split_method = 'LF'
 viscosity = 'off'
 viscosity_discretization = 'CENTRAL6'
 
-
-def set_flux_solver(flux_solver_config,transport_config=None):
-    global solver_type,interface_reconstruction,riemann_solver,split_method,viscosity,viscosity_discretization
-    solver_type = flux_solver_config['solver_type']
-    if solver_type == 'godunov':
-        interface_reconstruction = flux_solver_config['interface_reconstruction']
-        riemann_solver = flux_solver_config['riemann_solver']
-    elif solver_type == 'flux_splitting':
-        interface_reconstruction = flux_solver_config['interface_reconstruction']
-        split_method = flux_solver_config['split_method']
-    else:
-        raise KeyError("JANC only support 'godunov' and 'flux_splitting'")
-    
-    if flux_solver_config['viscosity'] == 'on':
-        viscosity = 'on'
-        transport_model.set_transport(transport_config)
-        if 'viscosity_discretization' in flux_solver_config:
-            viscosity_discretization = flux_solver_config['viscosity_discretization']
-        
-def godunov_flux(U,aux,metrics):
+def godunov_flux(U,aux,metrics,reconstruction_L_x,reconstruction_R_x,reconstruction_L_y,reconstruction_R_y,riemann_solver):
     rho,u,v,Y,p,a = aux_func.U_to_prim(U, aux)
     ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
     un = u*ξ_n_x + v*ξ_n_y
     ut = -u*ξ_n_y + v*ξ_n_x
     qx = jnp.concatenate([rho,un,ut,p,Y],axis=0)
-    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_x']
+    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
     un = u*η_n_x + v*η_n_y
     ut = u*η_n_y - v*η_n_x
     qy = jnp.concatenate([rho,ut,un,p,Y],axis=0)
-    q_L_x = reconstruction_L_x_dict[interface_reconstruction](qx)
-    q_R_x = reconstruction_R_x_dict[interface_reconstruction](qx)
-    q_L_y = reconstruction_L_y_dict[interface_reconstruction](qy)
-    q_R_y = reconstruction_R_y_dict[interface_reconstruction](qy)
-    F_interface,G_interface = riemann_solver_dict[riemann_solver](q_L_x,q_R_x,q_L_y,q_R_y)
+    q_L_x = reconstruction_L_x(qx)
+    q_R_x = reconstruction_R_x(qx)
+    q_L_y = reconstruction_L_y(qy)
+    q_R_y = reconstruction_R_y(qy)
+    F_interface,G_interface = riemann_solver(q_L_x,q_R_x,q_L_y,q_R_y)
     F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
                          F_interface[1:2]*ξ_n_y+F_interface[2:3]*ξ_n_x,F_interface[3:]],axis=0)*metrics['ξ-dl']
     G = jnp.concatenate([G_interface[0:1],G_interface[1:2]*η_n_y+G_interface[2:3]*η_n_x,
@@ -59,17 +39,17 @@ def godunov_flux(U,aux,metrics):
     net_flux = (dF + dG)/metrics['J']
     return -net_flux
 
-def flux_splitting(U,aux,metrics):
+def flux_splitting(U,aux,metrics,reconstruction_L_x,reconstruction_R_x,reconstruction_L_y,reconstruction_R_y,split_func):
     ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
     Ux = jnp.concatenate([U[0:1],U[1:2]*ξ_n_x + U[2:3]*ξ_n_y, -U[1:2]*ξ_n_y + U[2:3]*ξ_n_x, U[3:]],axis=0)
-    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_x']
+    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
     Uy = jnp.concatenate([U[0:1],U[1:2]*η_n_y - U[2:3]*η_n_x, U[1:2]*η_n_x + U[2:3]*η_n_y, U[3:]],axis=0)
-    Fplus,Fminus = split_flux_dict[split_method](1,Ux,aux)
-    Gplus,Gminus = split_flux_dict[split_method](2,Uy,aux)
-    Fp = reconstruction_L_x_dict[interface_reconstruction](Fplus)
-    Fm = reconstruction_R_x_dict[interface_reconstruction](Fminus)
-    Gp = reconstruction_L_y_dict[interface_reconstruction](Gplus)
-    Gm = reconstruction_R_y_dict[interface_reconstruction](Gminus)
+    Fplus,Fminus = split_func(1,Ux,aux)
+    Gplus,Gminus = split_func(2,Uy,aux)
+    Fp = reconstruction_L_x(Fplus)
+    Fm = reconstruction_R_x(Fminus)
+    Gp = reconstruction_L_y(Gplus)
+    Gm = reconstruction_R_y(Gminus)
     F_interface = Fp + Fm
     G_interface = Gp + Gm
     F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
@@ -81,23 +61,16 @@ def flux_splitting(U,aux,metrics):
     net_flux = (dF + dG)/metrics['J']
     return -net_flux
 
-advective_flux_dict = {'godunov':godunov_flux,
-                       'flux_splitting':flux_splitting}    
-
-def advective_flux(U,aux,metrics):
-    return advective_flux_dict[solver_type](U,aux,metrics)
-
-
-def viscous_flux_node(U, aux, metrics):
+def viscous_flux_node(U, aux, metrics,d_dx,d_dy):
     ρ,u,v,Y,p,a = aux_func.U_to_prim(U,aux)
     T = aux[1:2]
     cp_k, _, h_k = thermo_model.get_thermo_properties(T[0])
     cp, _, _, _, _ = thermo_model.get_thermo(T,Y)
     Y = thermo_model.fill_Y(Y)
-    du_dξ = d_dx_dict[viscosity_discretization](u,1.0);  du_dη = d_dy_dict[viscosity_discretization](u,1.0);
-    dv_dξ = d_dx_dict[viscosity_discretization](v,1.0);  dv_dη = d_dy_dict[viscosity_discretization](v,1.0);
-    dT_dξ = d_dx_dict[viscosity_discretization](T,1.0);  dT_dη = d_dy_dict[viscosity_discretization](T,1.0);
-    dY_dξ = d_dx_dict[viscosity_discretization](Y,1.0);  dY_dη = d_dy_dict[viscosity_discretization](Y,1.0);
+    du_dξ = d_dx(u,1.0);  du_dη = d_dy(u,1.0);
+    dv_dξ = d_dx(v,1.0);  dv_dη = d_dy(v,1.0);
+    dT_dξ = d_dx(T,1.0);  dT_dη = d_dy(T,1.0);
+    dY_dξ = d_dx(Y,1.0);  dY_dη = d_dy(Y,1.0);
     dξ_dx, dξ_dy = metrics['dξ_dx'], metrics['dξ_dy']
     dη_dx, dη_dy = metrics['dη_dx'], metrics['dη_dy']
     J = metrics['Jc']
@@ -135,23 +108,61 @@ def viscous_flux_node(U, aux, metrics):
     G_hat = J * (dη_dx*Fv + dη_dy*Gv)
     return F_hat, G_hat
 
-def viscous_flux(U, aux, metrics):
-    F_hat, G_hat = viscous_flux_node(U, aux, metrics)
-    F_interface = reconstruction_x_dict[viscosity_discretization](F_hat)
-    G_interface = reconstruction_y_dict[viscosity_discretization](G_hat)
+def viscous_flux_face(U, aux, metrics, d_dx, d_dy, reconstruction_x, reconstruction_y):
+    F_hat, G_hat = viscous_flux_node(U, aux, metrics, d_dx, d_dy)
+    F_interface = reconstruction_x(F_hat)
+    G_interface = reconstruction_y(G_hat)
     dF = F_interface[:,1:,:]-F_interface[:,:-1,:]
     dG = G_interface[:,:,1:]-G_interface[:,:,:-1]
     net_flux = (dF + dG)/metrics['J']
     return net_flux
 
-def NS_flux(U,aux,metrics):
-    return advective_flux(U,aux,metrics) + viscous_flux(U, aux, metrics)
 
-def Euler_flux(U,aux, metrics):
-    return advective_flux(U,aux,metrics)
 
-total_flux_dict = {'on':NS_flux,
-                   'off':Euler_flux}
-
-def total_flux(U,aux,metrics):
-    return total_flux_dict[viscosity](U,aux,metrics)
+def set_flux_solver(flux_solver_config,transport_config=None):
+    solver_type = flux_solver_config['solver_type']
+    if solver_type == 'godunov':
+        interface_reconstruction = flux_solver_config['interface_reconstruction']
+        riemann_solver_type = flux_solver_config['riemann_solver']
+        reconstruction_L_x = reconstruction_L_x_dict[interface_reconstruction]
+        reconstruction_R_x = reconstruction_R_x_dict[interface_reconstruction]
+        reconstruction_L_y = reconstruction_L_y_dict[interface_reconstruction]
+        reconstruction_R_y = reconstruction_R_y_dict[interface_reconstruction]
+        riemann_solver = riemann_solver_dict[riemann_solver_type]
+        def advective_flux(U,aux,metrics):
+            netflux = godunov_flux(U,aux,metrics,reconstruction_L_x,reconstruction_R_x,reconstruction_L_y,reconstruction_R_y,riemann_solver)
+            return netflux
+    elif solver_type == 'flux_splitting':
+        interface_reconstruction = flux_solver_config['interface_reconstruction']
+        split_method = flux_solver_config['split_method']
+        reconstruction_L_x = reconstruction_L_x_dict[interface_reconstruction]
+        reconstruction_R_x = reconstruction_R_x_dict[interface_reconstruction]
+        reconstruction_L_y = reconstruction_L_y_dict[interface_reconstruction]
+        reconstruction_R_y = reconstruction_R_y_dict[interface_reconstruction]
+        split_func = split_flux_dict[split_method]
+        def advective_flux(U,aux,metrics):
+            netflux = flux_splitting(U,aux,metrics,reconstruction_L_x,reconstruction_R_x,reconstruction_L_y,reconstruction_R_y,split_func)
+            return netflux
+    else:
+        raise KeyError("JANC only support 'godunov' and 'flux_splitting'")
+    
+    if flux_solver_config['viscosity'] == 'on':
+        transport_model.set_transport(transport_config)
+        if 'viscosity_discretization' in flux_solver_config:
+            viscosity_discretization = flux_solver_config['viscosity_discretization']
+        else:
+            viscosity_discretization = 'CENTRAL6'
+        d_dx = d_dx_dict[viscosity_discretization]
+        d_dy = d_dy_dict[viscosity_discretization]
+        reconstruction_x = reconstruction_x_dict[viscosity_discretization]
+        reconstruction_y = reconstruction_y_dict[viscosity_discretization]
+        def viscous_flux(U,aux,metrics):
+            netflux = viscous_flux_face(U, aux, metrics, d_dx, d_dy, reconstruction_x, reconstruction_y)
+            return netflux
+        def total_flux(U,aux,metrics):
+            total_flux = advective_flux(U,aux,metrics) + viscous_flux(U,aux,metrics)
+            return total_flux
+    else:
+        total_flux = advective_flux
+    
+    return total_flux
