@@ -16,18 +16,22 @@ def set_simulation(simulation_config):
         source_config = simulation_config['source_config']
     else:
         source_config = None
-    rhs.set_rhs(thermo_config, reaction_config, flux_config, transport_config, boundary_config, source_config)
+    rhs_func = rhs.set_rhs(thermo_config, reaction_config, flux_config, transport_config, boundary_config, source_config)
     time_scheme = simulation_config['temporal_evolution_scheme']
+    time_step_func = time_step.time_step_dict[time_scheme]
     if reaction_config['is_detailed_chemistry']:
         @jit
         def advance_one_step(U,aux,metrics,dt,theta=None):
-            U, aux = time_step.time_step_dict[time_scheme](U,aux,metrics,dt,theta)
+            U, aux = time_step_func(U,aux,metrics,dt,theta,rhs_func)
             dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
             U = U + dU
             aux = aux_func.update_aux(U, aux)
             return U, aux
     else:
-        advance_one_step = jit(time_step.time_step_dict[time_scheme])
+        @jit
+        def advance_one_step(U,aux,metrics,dt,theta=None):
+            U, aux = time_step_func(U,aux,metrics,dt,theta,rhs_func)
+            return U, aux
     return advance_one_step
             
 
