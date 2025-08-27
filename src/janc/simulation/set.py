@@ -6,6 +6,7 @@ from ..model import reaction_model
 def set_simulation(simulation_config):
     thermo_config = simulation_config['thermo_config']
     reaction_config = simulation_config['reaction_config']
+    reaction_source_terms = reaction_model.set_reaction(reaction_config)
     if 'transport_config' in simulation_config:
         transport_config = simulation_config['transport_config']
     else:
@@ -28,7 +29,7 @@ def set_simulation(simulation_config):
             aux2 = aux_func.update_aux(U2, aux1)
             U3 = 1/3*U + 2/3 * (U2 + rhs_func(U2,aux2,metrics,dt,theta))
             aux3 = aux_func.update_aux(U3, aux2)
-            dU = reaction_model.reaction_source_terms(U3,aux3,dt,theta)
+            dU = reaction_source_terms(U3,aux3,dt,theta)
             U = U3 + dU
             aux = aux_func.update_aux(U, aux3)
             return U, aux
@@ -41,4 +42,5 @@ def set_simulation(simulation_config):
             
 
     
+
 
