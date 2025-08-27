@@ -138,16 +138,17 @@ def detailed_reaction(U,aux,dt,theta=None):
     dY = drhoY/rho
     dY = jnp.clip(dY,min=-Y[0:-1],max=1-Y[0:-1])
     S = jnp.concatenate([jnp.zeros_like(U[:4]),rho*dY],axis=0)
-    return S/dt
+    return S
 
 def user_reaction(U,aux,dt,theta=None):
     user_source = self_defined_source(U,aux,dt,theta)
-    return user_source*dt
+    return user_source
 
 reaction_func_dict = {'detailed':detailed_reaction,
                       'user_defined':user_reaction}
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
