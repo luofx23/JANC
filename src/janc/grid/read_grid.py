@@ -111,4 +111,5 @@ def set_grid(grid_config):
         metrics['Jc'] = dx*dy
         metrics['dξ_dx'] = 1/dx
         metrics['dη_dy'] = 1/dy
-return metrics
+    return metrics
+
