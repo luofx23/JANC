@@ -22,10 +22,15 @@ def set_simulation(simulation_config):
     if reaction_config['is_detailed_chemistry']:
         @jit
         def advance_one_step(U,aux,metrics,dt,theta=None):
-            U, aux = time_step_func(U,aux,metrics,dt,theta,rhs_func)
-            dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
-            U = U + dU
-            aux = aux_func.update_aux(U, aux)
+            U1 = U + rhs_func(U,aux,metrics,dt,theta)
+            aux1 = aux_func.update_aux(U1, aux)
+            U2 = 3/4*U + 1/4 * (U1 + rhs_func(U1,aux1,metrics,dt,theta))
+            aux2 = aux_func.update_aux(U2, aux1)
+            U3 = 1/3*U + 2/3 * (U2 + rhs_func(U2,aux2,metrics,dt,theta))
+            aux3 = aux_func.update_aux(U3, aux2)
+            dU = reaction_model.reaction_source_terms(U3,aux3,dt,theta)
+            U = U3 + dU
+            aux = aux_func.update_aux(U, aux3)
             return U, aux
     else:
         @jit
@@ -36,3 +41,4 @@ def set_simulation(simulation_config):
             
 
     
+
