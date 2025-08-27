@@ -5,9 +5,8 @@ from ..model import thermo_model,reaction_model,transport_model
 from ..boundary import boundary
 
 point_implicit = 'off'
-def set_rhs(grid_config,thermo_config,reaction_config,flux_config,transport_config,boundary_config,source_config=None):
+def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_config,source_config=None):
     global point_implicit
-    read_grid.set_grid(grid_config)
     thermo_model.set_thermo(thermo_config)
     reaction_model.set_reaction(reaction_config)
     flux.set_flux_solver(flux_config,transport_config)
@@ -32,6 +31,7 @@ rhs_dict = {'off':rhs_explicit,
 def rhs(U, aux, metrics,dt, theta):
     return rhs_dict[point_implicit](U,aux,metrics,dt,theta)
     
+
 
 
 
