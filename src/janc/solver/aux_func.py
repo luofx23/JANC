@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from ..thermodynamics import thermo
+from ..model import thermo_model as thermo
 
 user_source = None
 
@@ -8,10 +8,7 @@ def set_source_terms(user_set):
     
     def zero_source_terms(U,aux,theta=None):
         return jnp.zeros_like(U)
-    
-    if not thermo.thermo_settings['is_detailed_chemistry']:
-        assert 'self_defined_source_terms' in user_set, "The chemical source terms must be provided by users."
-    
+
     if user_set is None:
         user_source = zero_source_terms
     
@@ -32,7 +29,6 @@ def update_aux(U,aux):
     return aux.at[0:2].set(aux_new)
 
 
-
 def source_terms(U,aux,theta=None):
     return user_source(U,aux,theta)
 
@@ -50,8 +46,21 @@ def U_to_prim(U,aux):
     Y = state[4:,:,:]/rho
     R = thermo.get_R(Y)#.astype(jnp.float32)
     p = (rho*R*T)
+    #rhoe = state[3:4,:,:]-0.5*rho*(u**2+v**2)
+    #gamma = p/rhoe + 1
     a = jnp.sqrt(gamma*p/rho)
     return rho,u,v,Y,p,a
+
+def prim_to_U(q):
+    rho,u,v,p,Y = q[0:1],q[1:2],q[2:3],q[3:4],q[4:]
+    R = thermo.get_R(Y)
+    T = p/(rho*R)
+    _, gamma, h, _, _ = thermo.get_thermo(T,Y)
+    rhoE = rho*h-p + 0.5*rho(u**2+v**2)
+    U = jnp.concatenate([rho,rho*u,rho*v,rhoE,rho*Y],axis=0)
+    aux = jnp.concatenate([gamma,T],axis=0)
+    return U,aux
+    
 
 
 

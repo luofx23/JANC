@@ -1,171 +1,157 @@
 import jax.numpy as jnp
-from jax import jit
 from ..solver import aux_func
-from ..thermodynamics import thermo
+from .reconstruction import reconstruction_L_x_dict,reconstruction_R_x_dict,\
+                            reconstruction_L_y_dict,reconstruction_R_y_dict,\
+                            reconstruction_x_dict,reconstruction_y_dict
+from .finite_difference import d_dx_dict,d_dy_dict
+from .riemann_solver import riemann_solver_dict
+from .flux_splitting import split_flux_dict
+from ..model import thermo_model, transport_model
+from ..grid import read_grid
 
-p = 2
-eps = 1e-6
-C1 = 1 / 10
-C2 = 3 / 5
-C3 = 3 / 10
-
-
-@jit
-def splitFlux_LF(ixy, U, aux):
-    rho,u,v,Y,p,a = aux_func.U_to_prim(U,aux)
-    rhoE = U[3:4,:,:]
-
-    zx = (ixy == 1) * 1
-    zy = (ixy == 2) * 1
-
-    F = zx*jnp.concatenate([rho * u, rho * u ** 2 + p, rho * u * v, u * (rhoE + p), rho * u * Y], axis=0) + zy*jnp.concatenate([rho * v, rho * u * v, rho * v ** 2 + p, v * (rhoE + p), rho * v * Y], axis=0)
-    um = jnp.nanmax(abs(u) + a)
-    vm = jnp.nanmax(abs(v) + a)
-    theta = zx*um + zy*vm
-    Hplus = 0.5 * (F + theta * U)
-    Hminus = 0.5 * (F - theta * U)
-    return Hplus, Hminus
-
-@jit
-def WENO_plus_x(f):
-    fj = f[:,2:-3,3:-3]
-    fjp1 = f[:,3:-2,3:-3]
-    fjp2 = f[:,4:-1,3:-3]
-    fjm1 = f[:,1:-4,3:-3]
-    fjm2 = f[:,0:-5,3:-3]
-
-    IS1 = 1 / 4 * jnp.power((fjm2 - 4 * fjm1 + 3 * fj), 2) + 13 / 12 * jnp.power((fjm2 - 2 * fjm1 + fj), 2)
-    IS2 = 1 / 4 * jnp.power((fjm1 - fjp1), 2) + 13 / 12 * jnp.power((fjm1 - 2 * fj + fjp1), 2)
-    IS3 = 1 / 4 * jnp.power((3 * fj - 4 * fjp1 + fjp2), 2) + 13 / 12 * jnp.power((fj - 2 * fjp1 + fjp2), 2)
-
-    alpha1 = C1 / jnp.power((eps + IS1), p)
-    alpha2 = C2 / jnp.power((eps + IS2), p)
-    alpha3 = C3 / jnp.power((eps + IS3), p)
+solver_type = 'godunov'
+interface_reconstruction = 'WENO5-JS'
+riemann_solver = 'HLLC'
+split_method = 'LF'
+viscosity = 'off'
+viscosity_discretization = 'CENTRAL6'
 
 
-    w1 = alpha1 / (alpha1 + alpha2 + alpha3)
-    w2 = alpha2 / (alpha1 + alpha2 + alpha3)
-    w3 = alpha3 / (alpha1 + alpha2 + alpha3)
+def set_flux_solver(flux_solver_config,transport_config=None):
+    global solver_type,interface_reconstruction,riemann_solver,split_method,viscosity,viscosity_discretization
+    solver_type = flux_solver_config['solver_type']
+    if solver_type == 'godunov':
+        interface_reconstruction = flux_solver_config['interface_reconstruction']
+        riemann_solver = flux_solver_config['riemann_solver']
+    elif solver_type == 'flux_splitting':
+        interface_reconstruction = flux_solver_config['interface_reconstruction']
+        split_method = flux_solver_config['split_method']
+    else:
+        raise KeyError("JANC only support 'godunov' and 'flux_splitting'")
+    
+    if flux_solver_config['viscosity'] == 'on':
+        viscosity = 'on'
+        transport_model.set_transport(transport_config)
+        if 'viscosity_discretization' in flux_solver_config:
+            viscosity_discretization = flux_solver_config['viscosity_discretization']
+        
+def godunov_flux(U,aux,metrics):
+    rho,u,v,Y,p,a = aux_func.U_to_prim(U, aux)
+    ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
+    un = u*ξ_n_x + v*ξ_n_y
+    ut = -u*ξ_n_y + v*ξ_n_x
+    qx = jnp.concatenate([rho,un,ut,p,Y],axis=0)
+    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_x']
+    un = u*η_n_x + v*η_n_y
+    ut = u*η_n_y - v*η_n_x
+    qy = jnp.concatenate([rho,ut,un,p,Y],axis=0)
+    q_L_x = reconstruction_L_x_dict[interface_reconstruction](qx)
+    q_R_x = reconstruction_R_x_dict[interface_reconstruction](qx)
+    q_L_y = reconstruction_L_y_dict[interface_reconstruction](qy)
+    q_R_y = reconstruction_R_y_dict[interface_reconstruction](qy)
+    F_interface,G_interface = riemann_solver_dict[riemann_solver](q_L_x,q_R_x,q_L_y,q_R_y)
+    F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
+                         F_interface[1:2]*ξ_n_y+F_interface[2:3]*ξ_n_x,F_interface[3:]],axis=0)*metrics['ξ-dl']
+    G = jnp.concatenate([G_interface[0:1],G_interface[1:2]*η_n_y+G_interface[2:3]*η_n_x,
+                         -G_interface[1:2]*η_n_x+G_interface[2:3]*η_n_y,G_interface[3:]],axis=0)*metrics['η-dl']
+    dF = F[:,1:,:]-F[:,:-1,:]
+    dG = G[:,:,1:]-G[:,:,:-1]
+    net_flux = (dF + dG)/metrics['J']
+    return -net_flux
 
-    fj_halfp1 = 1 / 3 * fjm2 - 7 / 6 * fjm1 + 11 / 6 * fj
-    fj_halfp2 = -1 / 6 * fjm1 + 5 / 6 * fj + 1 / 3 * fjp1
-    fj_halfp3 = 1 / 3 * fj + 5 / 6 * fjp1 - 1 / 6 * fjp2
+def flux_splitting(U,aux,metrics):
+    ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
+    Ux = jnp.concatenate([U[0:1],U[1:2]*ξ_n_x + U[2:3]*ξ_n_y, -U[1:2]*ξ_n_y + U[2:3]*ξ_n_x, U[3:]],axis=0)
+    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_x']
+    Uy = jnp.concatenate([U[0:1],U[1:2]*η_n_y - U[2:3]*η_n_x, U[1:2]*η_n_x + U[2:3]*η_n_y, U[3:]],axis=0)
+    Fplus,Fminus = split_flux_dict[split_method](1,Ux,aux)
+    Gplus,Gminus = split_flux_dict[split_method](2,Uy,aux)
+    Fp = reconstruction_L_x_dict[interface_reconstruction](Fplus)
+    Fm = reconstruction_R_x_dict[interface_reconstruction](Fminus)
+    Gp = reconstruction_L_y_dict[interface_reconstruction](Gplus)
+    Gm = reconstruction_R_y_dict[interface_reconstruction](Gminus)
+    F_interface = Fp + Fm
+    G_interface = Gp + Gm
+    F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
+                         F_interface[1:2]*ξ_n_y+F_interface[2:3]*ξ_n_x,F_interface[3:]],axis=0)*metrics['ξ-dl']
+    G = jnp.concatenate([G_interface[0:1],G_interface[1:2]*η_n_y+G_interface[2:3]*η_n_x,
+                         -G_interface[1:2]*η_n_x+G_interface[2:3]*η_n_y,G_interface[3:]],axis=0)*metrics['η-dl']
+    dF = F[:,1:,:]-F[:,:-1,:]
+    dG = G[:,:,1:]-G[:,:,:-1]
+    net_flux = (dF + dG)/metrics['J']
+    return -net_flux
 
-    fj_halfp = w1 * fj_halfp1 + w2 * fj_halfp2 + w3 * fj_halfp3
-    #dfj = fj_halfp[:,1:,:] - fj_halfp[:,0:-1,:]
-    return fj_halfp
+advective_flux_dict = {'godunov':godunov_flux,
+                       'flux_splitting':flux_splitting}    
 
-@jit
-def WENO_plus_y(f):
-
-    fj = f[:,3:-3,2:-3]
-    fjp1 = f[:,3:-3,3:-2]
-    fjp2 = f[:,3:-3,4:-1]
-    fjm1 = f[:,3:-3,1:-4]
-    fjm2 = f[:,3:-3,0:-5]
-
-    IS1 = 1 / 4 * jnp.power((fjm2 - 4 * fjm1 + 3 * fj), 2) + 13 / 12 * jnp.power((fjm2 - 2 * fjm1 + fj), 2)
-    IS2 = 1 / 4 * jnp.power((fjm1 - fjp1), 2) + 13 / 12 * jnp.power((fjm1 - 2 * fj + fjp1), 2)
-    IS3 = 1 / 4 * jnp.power((3 * fj - 4 * fjp1 + fjp2), 2) + 13 / 12 * jnp.power((fj - 2 * fjp1 + fjp2), 2)
-
-    alpha1 = C1 / jnp.power((eps + IS1), p)
-    alpha2 = C2 / jnp.power((eps + IS2), p)
-    alpha3 = C3 / jnp.power((eps + IS3), p)
-
-
-    w1 = alpha1 / (alpha1 + alpha2 + alpha3)
-    w2 = alpha2 / (alpha1 + alpha2 + alpha3)
-    w3 = alpha3 / (alpha1 + alpha2 + alpha3)
-
-    fj_halfp1 = 1 / 3 * fjm2 - 7 / 6 * fjm1 + 11 / 6 * fj
-    fj_halfp2 = -1 / 6 * fjm1 + 5 / 6 * fj + 1 / 3 * fjp1
-    fj_halfp3 = 1 / 3 * fj + 5 / 6 * fjp1 - 1 / 6 * fjp2
-
-    fj_halfp = w1 * fj_halfp1 + w2 * fj_halfp2 + w3 * fj_halfp3
-    #dfj = fj_halfp[:,:,1:] - fj_halfp[:,:,0:-1]
-
-    return fj_halfp
-
-@jit
-def WENO_minus_x(f):
-
-    fj = f[:,3:-2,3:-3]
-    fjp1 = f[:,4:-1,3:-3]
-    fjp2 = f[:,5:,3:-3]
-    fjm1 = f[:,2:-3,3:-3]
-    fjm2 = f[:,1:-4,3:-3]
-
-    IS1 = 1 / 4 * jnp.power((fjp2 - 4 * fjp1 + 3 * fj), 2) + 13 / 12 * jnp.power((fjp2 - 2 * fjp1 + fj), 2)
-    IS2 = 1 / 4 * jnp.power((fjp1 - fjm1), 2) + 13 / 12 * jnp.power((fjp1 - 2 * fj + fjm1), 2)
-    IS3 = 1 / 4 * jnp.power((3 * fj - 4 * fjm1 + fjm2), 2) + 13 / 12 * jnp.power((fj - 2 * fjm1 + fjm2), 2)
-
-    alpha1 = C1 / jnp.power((eps + IS1), p)
-    alpha2 = C2 / jnp.power((eps + IS2), p)
-    alpha3 = C3 / jnp.power((eps + IS3), p)
-
-
-    w1 = alpha1 / (alpha1 + alpha2 + alpha3)
-    w2 = alpha2 / (alpha1 + alpha2 + alpha3)
-    w3 = alpha3 / (alpha1 + alpha2 + alpha3)
-
-    fj_halfm1 = 1 / 3 * fjp2 - 7 / 6 * fjp1 + 11 / 6 * fj
-    fj_halfm2 = -1 / 6 * fjp1 + 5 / 6 * fj + 1 / 3 * fjm1
-    fj_halfm3 = 1 / 3 * fj + 5 / 6 * fjm1 - 1 / 6 * fjm2
-
-    fj_halfm = w1 * fj_halfm1 + w2 * fj_halfm2 + w3 * fj_halfm3
-    #dfj = (fj_halfm[:,1:,:] - fj_halfm[:,0:-1,:])
-
-    return fj_halfm
-
-@jit
-def WENO_minus_y(f):
-
-    fj = f[:,3:-3,3:-2]
-    fjp1 = f[:,3:-3,4:-1]
-    fjp2 = f[:,3:-3,5:]
-    fjm1 = f[:,3:-3,2:-3]
-    fjm2 = f[:,3:-3,1:-4]
-
-    IS1 = 1 / 4 * jnp.power((fjp2 - 4 * fjp1 + 3 * fj), 2) + 13 / 12 * jnp.power((fjp2 - 2 * fjp1 + fj), 2)
-    IS2 = 1 / 4 * jnp.power((fjp1 - fjm1), 2) + 13 / 12 * jnp.power((fjp1 - 2 * fj + fjm1), 2)
-    IS3 = 1 / 4 * jnp.power((3 * fj - 4 * fjm1 + fjm2), 2) + 13 / 12 * jnp.power((fj - 2 * fjm1 + fjm2), 2)
-
-    alpha1 = C1 / jnp.power((eps + IS1), p)
-    alpha2 = C2 / jnp.power((eps + IS2), p)
-    alpha3 = C3 / jnp.power((eps + IS3), p)
+def advective_flux(U,aux,metrics):
+    return advective_flux_dict[solver_type](U,aux,metrics)
 
 
-    w1 = alpha1 / (alpha1 + alpha2 + alpha3)
-    w2 = alpha2 / (alpha1 + alpha2 + alpha3)
-    w3 = alpha3 / (alpha1 + alpha2 + alpha3)
+def viscous_flux_node(U, aux, metrics):
+    ρ,u,v,Y,p,a = aux_func.U_to_prim(U,aux)
+    T = aux[1:2]
+    cp_k, _, h_k = thermo_model.get_thermo_properties(T[0])
+    cp, _, _, _, _ = thermo_model.get_thermo(T,Y)
+    Y = thermo_model.fill_Y(Y)
+    du_dξ = d_dx_dict[viscosity_discretization](u,1.0);  du_dη = d_dy_dict[viscosity_discretization](u,1.0);
+    dv_dξ = d_dx_dict[viscosity_discretization](v,1.0);  dv_dη = d_dy_dict[viscosity_discretization](v,1.0);
+    dT_dξ = d_dx_dict[viscosity_discretization](T,1.0);  dT_dη = d_dy_dict[viscosity_discretization](T,1.0);
+    dY_dξ = d_dx_dict[viscosity_discretization](Y,1.0);  dY_dη = d_dy_dict[viscosity_discretization](Y,1.0);
+    dξ_dx, dξ_dy = metrics['dξ_dx'], metrics['dξ_dy']
+    dη_dx, dη_dy = metrics['dη_dx'], metrics['dη_dy']
+    J = metrics['Jc']
+    du_dx = dξ_dx*du_dξ + dη_dx*du_dη
+    du_dy = dξ_dy*du_dξ + dη_dy*du_dη
+    dv_dx = dξ_dx*dv_dξ + dη_dx*dv_dη
+    dv_dy = dξ_dy*dv_dξ + dη_dy*dv_dη
+    dT_dx = dξ_dx*dT_dξ + dη_dx*dT_dη
+    dT_dy = dξ_dy*dT_dξ + dη_dy*dT_dη
+    dY_dx = dξ_dx*dY_dξ + dη_dx*dY_dη
+    dY_dy = dξ_dy*dY_dξ + dη_dy*dY_dη
+    mu,mu_t = transport_model.mu(ρ,T,J,du_dx,du_dy,None,dv_dx,dv_dy,None,None,None,None)
+    k = transport_model.kappa(mu, cp, mu_t)
+    D_k = transport_model.D(mu,cp_k,mu_t)
+    λ = -2/3*mu
+    S11 = du_dx; S22 = dv_dy;
+    S12 = 0.5 * (du_dy + dv_dx)
+    div_u = S11 + S22
+    τ_xx = 2*mu*du_dx + λ*div_u
+    τ_yy = 2*mu*dv_dy + λ*div_u
+    τ_xy = 2*mu*S12
+    qx = -k * dT_dx
+    qy = -k * dT_dy
+    jx =  - ρ * D_k * dY_dx
+    jy =  - ρ * D_k * dY_dy
+    ex = jnp.sum(jx*h_k,axis=0,keepdims=True)
+    ey = jnp.sum(jy*h_k,axis=0,keepdims=True)
+    Fv = jnp.concatenate([jnp.zeros_like(ρ),
+                         τ_xx, τ_xy,
+                         u*τ_xx + v*τ_xy - qx - ex, -jx[0:-1]], axis=0)
+    Gv = jnp.concatenate([jnp.zeros_like(ρ),
+                         τ_xy, τ_yy,
+                         u*τ_xy + v*τ_yy - qy - ey, -jy[0:-1]], axis=0)
+    F_hat = J * (dξ_dx*Fv + dξ_dy*Gv)
+    G_hat = J * (dη_dx*Fv + dη_dy*Gv)
+    return F_hat, G_hat
 
-    fj_halfm1 = 1 / 3 * fjp2 - 7 / 6 * fjp1 + 11 / 6 * fj
-    fj_halfm2 = -1 / 6 * fjp1 + 5 / 6 * fj + 1 / 3 * fjm1
-    fj_halfm3 = 1 / 3 * fj + 5 / 6 * fjm1 - 1 / 6 * fjm2
+def viscous_flux(U, aux, metrics):
+    F_hat, G_hat = viscous_flux_node(U, aux, metrics)
+    F_interface = reconstruction_x_dict[viscosity_discretization](F_hat)
+    G_interface = reconstruction_y_dict[viscosity_discretization](G_hat)
+    dF = F_interface[:,1:,:]-F_interface[:,:-1,:]
+    dG = G_interface[:,:,1:]-G_interface[:,:,:-1]
+    net_flux = (dF + dG)/metrics['J']
+    return net_flux
 
-    fj_halfm = w1 * fj_halfm1 + w2 * fj_halfm2 + w3 * fj_halfm3
-    #dfj = (fj_halfm[:,:,1:] - fj_halfm[:,:,0:-1])
+def NS_flux(U,aux,metrics):
+    return advective_flux(U,aux,metrics) + viscous_flux(U, aux, metrics)
 
-    return fj_halfm
+def Euler_flux(U,aux, metrics):
+    return advective_flux(U,aux,metrics)
 
-@jit
-def weno5(U,aux,dx,dy):
-    Fplus, Fminus = splitFlux_LF(1, U, aux)
-    Gplus, Gminus = splitFlux_LF(2, U, aux)
+total_flux_dict = {'on':NS_flux,
+                   'off':Euler_flux}
 
-    dFp = WENO_plus_x(Fplus)
-    dFp = (dFp[:,1:,:] - dFp[:,0:-1,:])
-    dFm = WENO_minus_x(Fminus)
-    dFm = (dFm[:,1:,:] - dFm[:,0:-1,:])
-
-    dGp = WENO_plus_y(Gplus)
-    dGp = (dGp[:,:,1:] - dGp[:,:,0:-1])
-    dGm = WENO_minus_y(Gminus)
-    dGm = (dGm[:,:,1:] - dGm[:,:,0:-1])
-
-    dF = dFp + dFm
-    dG = dGp + dGm
-
-    netflux = dF/dx + dG/dy
-
-    return -netflux  
+def total_flux(U,aux,metrics):
+    return total_flux_dict[viscosity](U,aux,metrics)
