@@ -41,7 +41,7 @@ def godunov_flux(U,aux,metrics):
     un = u*ξ_n_x + v*ξ_n_y
     ut = -u*ξ_n_y + v*ξ_n_x
     qx = jnp.concatenate([rho,un,ut,p,Y],axis=0)
-    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
+    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_x']
     un = u*η_n_x + v*η_n_y
     ut = u*η_n_y - v*η_n_x
     qy = jnp.concatenate([rho,ut,un,p,Y],axis=0)
@@ -62,7 +62,7 @@ def godunov_flux(U,aux,metrics):
 def flux_splitting(U,aux,metrics):
     ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
     Ux = jnp.concatenate([U[0:1],U[1:2]*ξ_n_x + U[2:3]*ξ_n_y, -U[1:2]*ξ_n_y + U[2:3]*ξ_n_x, U[3:]],axis=0)
-    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
+    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_x']
     Uy = jnp.concatenate([U[0:1],U[1:2]*η_n_y - U[2:3]*η_n_x, U[1:2]*η_n_x + U[2:3]*η_n_y, U[3:]],axis=0)
     Fplus,Fminus = split_flux_dict[split_method](1,Ux,aux)
     Gplus,Gminus = split_flux_dict[split_method](2,Uy,aux)
@@ -155,4 +155,3 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,metrics):
     return total_flux_dict[viscosity](U,aux,metrics)
-
