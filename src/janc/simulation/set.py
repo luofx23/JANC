@@ -4,7 +4,6 @@ from ..solver import rhs,time_step,aux_func
 from ..model import reaction_model
 
 def set_simulation(simulation_config):
-    grid_config = simulation_config['grid_config']
     thermo_config = simulation_config['thermo_config']
     reaction_config = simulation_config['reaction_config']
     if 'transport_config' in simulation_config:
@@ -17,7 +16,7 @@ def set_simulation(simulation_config):
         source_config = simulation_config['source_config']
     else:
         source_config = None
-    rhs.set_rhs(grid_config, thermo_config, reaction_config, flux_config, transport_config, boundary_config, source_config)
+    rhs.set_rhs(thermo_config, reaction_config, flux_config, transport_config, boundary_config, source_config)
     time_scheme = simulation_config['temporal_evolution_scheme']
     if reaction_config['is_detailed_chemistry']:
         @jit
@@ -31,4 +30,5 @@ def set_simulation(simulation_config):
         advance_one_step = jit(time_step.time_step_dict[time_scheme])
     return advance_one_step
             
+
     
