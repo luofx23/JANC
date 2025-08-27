@@ -89,6 +89,16 @@ def set_grid(grid_config):
                  'bottom_n_x':bottom_n_x[None,:,:],'bottom_n_y':bottom_n_y[None,:,:],
                  'top_n_x':top_n_x[None,:,:],'top_n_y':top_n_y[None,:,:]}
     else:
+        metrics={'ξ-n_x':1.0,'ξ-n_y':0.0,
+         'η-n_x':0.0,'η-n_y':1.0,
+         'ξ-dl':1.0,'η-dl':1.0,
+         'J':1.0,'Jc':1.0,
+         'dξ_dx':1.0,'dη_dx':0.0,
+         'dξ_dy':0.0,'dη_dy':1.0,
+         'left_n_x':1.0,'left_n_y':0.0,
+         'right_n_x':-1.0,'right_n_y':0.0,
+         'bottom_n_x':0.0,'bottom_n_y':1.0,
+         'top_n_x':0.0,'top_n_y':-1.0}     
         Lx = grid_config['Lx']
         Ly = grid_config['Ly']
         nx = grid_config['Nx']
@@ -101,3 +111,4 @@ def set_grid(grid_config):
         metrics['Jc'] = dx*dy
         metrics['dξ_dx'] = 1/dx
         metrics['dη_dy'] = 1/dy
+return metrics
