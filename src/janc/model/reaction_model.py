@@ -142,13 +142,14 @@ def detailed_reaction(U,aux,dt,theta=None):
 
 def user_reaction(U,aux,dt,theta=None):
     user_source = self_defined_source(U,aux,dt,theta)
-    return user_source
+    return user_source*dt
 
 reaction_func_dict = {'detailed':detailed_reaction,
                       'user_defined':user_reaction}
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
