@@ -151,7 +151,7 @@ def set_flux_solver(flux_solver_config,transport_config=None):
             dF = F[:,1:,:]-F[:,:-1,:]
             dG = G[:,:,1:]-G[:,:,:-1]
             net_flux = (dF + dG)/metrics['J']
-            return -netflux
+            return -net_flux
     elif solver_type == 'flux_splitting':
         interface_reconstruction = flux_solver_config['interface_reconstruction']
         split_method = flux_solver_config['split_method']
@@ -180,7 +180,7 @@ def set_flux_solver(flux_solver_config,transport_config=None):
             dF = F[:,1:,:]-F[:,:-1,:]
             dG = G[:,:,1:]-G[:,:,:-1]
             net_flux = (dF + dG)/metrics['J']
-            return -netflux
+            return -net_flux
     else:
         raise KeyError("JANC only support 'godunov' and 'flux_splitting'")
     
@@ -255,5 +255,6 @@ def set_flux_solver(flux_solver_config,transport_config=None):
         total_flux = advective_flux
     
     return total_flux
+
 
 
