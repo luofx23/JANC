@@ -247,7 +247,7 @@ def set_flux_solver(flux_solver_config,transport_config=None):
             dF = F_interface[:,1:,:]-F_interface[:,:-1,:]
             dG = G_interface[:,:,1:]-G_interface[:,:,:-1]
             net_flux = (dF + dG)/metrics['J']
-            return netflux
+            return net_flux
         def total_flux(U,aux,metrics):
             total_flux = advective_flux(U,aux,metrics) + viscous_flux(U,aux,metrics)
             return total_flux
@@ -255,4 +255,5 @@ def set_flux_solver(flux_solver_config,transport_config=None):
         total_flux = advective_flux
     
     return total_flux
+
 
