@@ -161,25 +161,27 @@ def set_flux_solver(flux_solver_config,transport_config=None):
         reconstruction_R_y = reconstruction_R_y_dict[interface_reconstruction]
         split_func = split_flux_dict[split_method]
         def advective_flux(U,aux,metrics):
-            ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
-            Ux = jnp.concatenate([U[0:1],U[1:2]*ξ_n_x + U[2:3]*ξ_n_y, -U[1:2]*ξ_n_y + U[2:3]*ξ_n_x, U[3:]],axis=0)
-            η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
-            Uy = jnp.concatenate([U[0:1],U[1:2]*η_n_y - U[2:3]*η_n_x, U[1:2]*η_n_x + U[2:3]*η_n_y, U[3:]],axis=0)
-            Fplus,Fminus = split_func(1,Ux,aux)
-            Gplus,Gminus = split_func(2,Uy,aux)
+            dx = 1e-4
+            dy = 1e-4
+            #ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
+            #Ux = jnp.concatenate([U[0:1],U[1:2]*ξ_n_x + U[2:3]*ξ_n_y, -U[1:2]*ξ_n_y + U[2:3]*ξ_n_x, U[3:]],axis=0)
+            #η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
+            #Uy = jnp.concatenate([U[0:1],U[1:2]*η_n_y - U[2:3]*η_n_x, U[1:2]*η_n_x + U[2:3]*η_n_y, U[3:]],axis=0)
+            Fplus,Fminus = split_func(1,U,aux)
+            Gplus,Gminus = split_func(2,U,aux)
             Fp = reconstruction_L_x(Fplus)
             Fm = reconstruction_R_x(Fminus)
             Gp = reconstruction_L_y(Gplus)
             Gm = reconstruction_R_y(Gminus)
             F_interface = Fp + Fm
             G_interface = Gp + Gm
-            F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
-                                 F_interface[1:2]*ξ_n_y+F_interface[2:3]*ξ_n_x,F_interface[3:]],axis=0)*metrics['ξ-dl']
-            G = jnp.concatenate([G_interface[0:1],G_interface[1:2]*η_n_y+G_interface[2:3]*η_n_x,
-                                 -G_interface[1:2]*η_n_x+G_interface[2:3]*η_n_y,G_interface[3:]],axis=0)*metrics['η-dl']
-            dF = F[:,1:,:]-F[:,:-1,:]
-            dG = G[:,:,1:]-G[:,:,:-1]
-            net_flux = (dF + dG)/metrics['J']
+            #F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
+                                 #F_interface[1:2]*ξ_n_y+F_interface[2:3]*ξ_n_x,F_interface[3:]],axis=0)*metrics['ξ-dl']
+            #G = jnp.concatenate([G_interface[0:1],G_interface[1:2]*η_n_y+G_interface[2:3]*η_n_x,
+                                 #-G_interface[1:2]*η_n_x+G_interface[2:3]*η_n_y,G_interface[3:]],axis=0)*metrics['η-dl']
+            dF = (F_interface[:,1:,:]-F_interface[:,:-1,:])*dy
+            dG = (G_interface[:,:,1:]-G_interface[:,:,:-1])*dx
+            net_flux = (dF + dG)/(dx*dy)#metrics['J']
             return -net_flux
     else:
         raise KeyError("JANC only support 'godunov' and 'flux_splitting'")
@@ -255,6 +257,7 @@ def set_flux_solver(flux_solver_config,transport_config=None):
         total_flux = advective_flux
     
     return total_flux
+
 
 
 
