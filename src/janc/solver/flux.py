@@ -177,12 +177,12 @@ def set_flux_solver(flux_solver_config,transport_config=None):
             G_interface = Gp + Gm
             #F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
                                  #F_interface[1:2]*ξ_n_y+F_interface[2:3]*ξ_n_x,F_interface[3:]],axis=0)*metrics['ξ-dl']
-            F = jnp.concatenate([F_interface[0:1],F_interface[1:2],
-                                 F_interface[2:3],F_interface[3:]],axis=0)*metrics['ξ-dl']
+            F = jnp.concatenate([F_interface[0:1],F_interface[1:2]-F_interface[2:3]*0.0,
+                                 F_interface[1:2]*0.0+F_interface[2:3],F_interface[3:]],axis=0)*metrics['ξ-dl']
             #G = jnp.concatenate([G_interface[0:1],G_interface[1:2]*η_n_y+G_interface[2:3]*η_n_x,
                                  #-G_interface[1:2]*η_n_x+G_interface[2:3]*η_n_y,G_interface[3:]],axis=0)*metrics['η-dl']
-            G = jnp.concatenate([G_interface[0:1],G_interface[1:2],
-                                 G_interface[2:3],G_interface[3:]],axis=0)*metrics['η-dl']
+            G = jnp.concatenate([G_interface[0:1],G_interface[1:2]+G_interface[2:3]*0.0,
+                                 -G_interface[1:2]*0.0+G_interface[2:3],G_interface[3:]],axis=0)*metrics['η-dl']
             dF = (F[:,1:,:]-F[:,:-1,:])
             dG = (G[:,:,1:]-G[:,:,:-1])
             net_flux = (dF + dG)/metrics['J']
@@ -261,6 +261,7 @@ def set_flux_solver(flux_solver_config,transport_config=None):
         total_flux = advective_flux
     
     return total_flux
+
 
 
 
