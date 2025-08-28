@@ -161,10 +161,10 @@ def set_flux_solver(flux_solver_config,transport_config=None):
         reconstruction_R_y = reconstruction_R_y_dict[interface_reconstruction]
         split_func = split_flux_dict[split_method]
         def advective_flux(U,aux,metrics):
-            #ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
+            ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
             #Ux = jnp.concatenate([U[0:1],U[1:2]*ξ_n_x + U[2:3]*ξ_n_y, -U[1:2]*ξ_n_y + U[2:3]*ξ_n_x, U[3:]],axis=0)
             Ux = jnp.concatenate([U[0:1],U[1:2]*1.0 + U[2:3]*0.0, -U[1:2]*0.0 + U[2:3]*1.0, U[3:]],axis=0)
-            #η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
+            η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
             #Uy = jnp.concatenate([U[0:1],U[1:2]*η_n_y - U[2:3]*η_n_x, U[1:2]*η_n_x + U[2:3]*η_n_y, U[3:]],axis=0)
             Uy = jnp.concatenate([U[0:1],U[1:2]*1.0 - U[2:3]*0.0, U[1:2]*0.0 + U[2:3]*1.0, U[3:]],axis=0)
             Fplus,Fminus = split_func(1,Ux,aux)
@@ -257,6 +257,7 @@ def set_flux_solver(flux_solver_config,transport_config=None):
         total_flux = advective_flux
     
     return total_flux
+
 
 
 
