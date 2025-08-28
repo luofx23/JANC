@@ -7,7 +7,6 @@ from .finite_difference import d_dx_dict,d_dy_dict
 from .riemann_solver import riemann_solver_dict
 from .flux_splitting import split_flux_dict
 from ..model import thermo_model, transport_model
-from ..grid import read_grid
 
 solver_type = 'godunov'
 interface_reconstruction = 'WENO5-JS'
@@ -37,18 +36,25 @@ def set_flux_solver(flux_solver_config,transport_config=None):
         
 def godunov_flux(U,aux,metrics):
     rho,u,v,Y,p,a = aux_func.U_to_prim(U, aux)
-    ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
-    un = u*ξ_n_x + v*ξ_n_y
-    ut = -u*ξ_n_y + v*ξ_n_x
-    qx = jnp.concatenate([rho,un,ut,p,Y],axis=0)
-    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
-    un = u*η_n_x + v*η_n_y
-    ut = u*η_n_y - v*η_n_x
-    qy = jnp.concatenate([rho,ut,un,p,Y],axis=0)
-    q_L_x = reconstruction_L_x_dict[interface_reconstruction](qx)
-    q_R_x = reconstruction_R_x_dict[interface_reconstruction](qx)
-    q_L_y = reconstruction_L_y_dict[interface_reconstruction](qy)
-    q_R_y = reconstruction_R_y_dict[interface_reconstruction](qy)
+    q = jnp.concatenate([rho,u,v,p,Y],axis=0)
+    q_L_x = reconstruction_L_x_dict[interface_reconstruction](q)
+    q_R_x = reconstruction_R_x_dict[interface_reconstruction](q)
+    q_L_y = reconstruction_L_y_dict[interface_reconstruction](q)
+    q_R_y = reconstruction_R_y_dict[interface_reconstruction](q)
+    ξ_n_x,ξ_n_y = metrics['ξ_n_x'],metrics['ξ_n_y']
+    η_n_x,η_n_y = metrics['η_n_x'],metrics['η_n_y']
+    u_L_x = q_L_x[1:2]*ξ_n_x+q_L_x[2:3]*ξ_n_y
+    v_L_x = -q_L_x[1:2]*ξ_n_y + q_L_x[2:3]*ξ_n_x
+    u_R_x = q_R_x[1:2]*ξ_n_x+q_R_x[2:3]*ξ_n_y
+    v_R_x = -q_R_x[1:2]*ξ_n_y + q_R_x[2:3]*ξ_n_x
+    u_L_y = q_L_y[1:2]*η_n_y-q_L_y[2:3]*η_n_x
+    v_L_y = q_L_y[1:2]*η_n_x + q_L_y[2:3]*η_n_y
+    u_R_y = q_R_y[1:2]*η_n_y-q_R_y[2:3]*η_n_x
+    v_R_y = q_R_y[1:2]*η_n_x + q_R_y[2:3]*η_n_y
+    q_L_x = q_L_x.at[1:3].set(jnp.concatenate([u_L_x,v_L_x]))
+    q_R_x = q_R_x.at[1:3].set(jnp.concatenate([u_R_x,v_R_x]))
+    q_L_y = q_L_y.at[1:3].set(jnp.concatenate([u_L_y,v_L_y]))
+    q_R_y = q_R_y.at[1:3].set(jnp.concatenate([u_R_y,v_R_y]))
     F_interface,G_interface = riemann_solver_dict[riemann_solver](q_L_x,q_R_x,q_L_y,q_R_y)
     F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
                          F_interface[1:2]*ξ_n_y+F_interface[2:3]*ξ_n_x,F_interface[3:]],axis=0)*metrics['ξ-dl']
@@ -60,22 +66,15 @@ def godunov_flux(U,aux,metrics):
     return -net_flux
 
 def flux_splitting(U,aux,metrics):
-    ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
-    Ux = jnp.concatenate([U[0:1],U[1:2]*ξ_n_x + U[2:3]*ξ_n_y, -U[1:2]*ξ_n_y + U[2:3]*ξ_n_x, U[3:]],axis=0)
-    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
-    Uy = jnp.concatenate([U[0:1],U[1:2]*η_n_y - U[2:3]*η_n_x, U[1:2]*η_n_x + U[2:3]*η_n_y, U[3:]],axis=0)
-    Fplus,Fminus = split_flux_dict[split_method](1,Ux,aux)
-    Gplus,Gminus = split_flux_dict[split_method](2,Uy,aux)
+    
+    Fplus,Fminus = split_flux_dict[split_method](1,U,aux,metrics)
+    Gplus,Gminus = split_flux_dict[split_method](2,U,aux,metrics)
     Fp = reconstruction_L_x_dict[interface_reconstruction](Fplus)
     Fm = reconstruction_R_x_dict[interface_reconstruction](Fminus)
     Gp = reconstruction_L_y_dict[interface_reconstruction](Gplus)
     Gm = reconstruction_R_y_dict[interface_reconstruction](Gminus)
-    F_interface = Fp + Fm
-    G_interface = Gp + Gm
-    F = jnp.concatenate([F_interface[0:1],F_interface[1:2]*ξ_n_x-F_interface[2:3]*ξ_n_y,
-                         F_interface[1:2]*ξ_n_y+F_interface[2:3]*ξ_n_x,F_interface[3:]],axis=0)*metrics['ξ-dl']
-    G = jnp.concatenate([G_interface[0:1],G_interface[1:2]*η_n_y+G_interface[2:3]*η_n_x,
-                         -G_interface[1:2]*η_n_x+G_interface[2:3]*η_n_y,G_interface[3:]],axis=0)*metrics['η-dl']
+    F = Fp + Fm
+    G = Gp + Gm
     dF = F[:,1:,:]-F[:,:-1,:]
     dG = G[:,:,1:]-G[:,:,:-1]
     net_flux = (dF + dG)/metrics['J']
