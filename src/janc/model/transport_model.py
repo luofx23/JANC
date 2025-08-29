@@ -13,6 +13,8 @@ S = 110.4
 nu0 = 1e-4
 Pr = 0.72
 Pr_t = 0.72
+Sc = 0.72
+Sc_t = 0.72
 Le = 1.0
 Le_t = 1.0
 k0 = 0.0
@@ -23,8 +25,8 @@ D_type = 'Lewis number'
 model = 'laminar'
 LES_model = 'WALE'
 
-def set_transport(transport_config):
-    global Pr_t,Le_t,LES_model,model,nu_type, k_type, D_type, Pr, Le, nu0, k0, D0,mu_ref,T_ref,S
+def set_transport(transport_config,dim):
+    global Pr_t,Sc_t, Le_t,LES_model,model,nu_type, k_type, D_type, Pr, Sc, Le, nu0, k0, D0,mu_ref,T_ref,S
     if transport_config['viscosity_model'] == 'constant':
         nu_type = 'constant'
         nu0 = transport_config['dynamic_viscosity']
@@ -56,20 +58,30 @@ def set_transport(transport_config):
     if transport_config['species_diffusivity_model'] == 'constant':
         D_type = 'constant'
         D0 = transport_config['species_diffusivity']
+    elif transport_config['species_diffusivity_model'] == 'Schmidt number':
+        assert 'Sc' in transport_config, "Key 'Sc' must be provided"
+        Sc = transport_config['Sc']
+        Le = Sc/Pr
     elif transport_config['species_diffusivity_model'] == 'Lewis number':
         assert 'Le' in transport_config, "Key 'Le' must be provided"
         Le = transport_config['Le']
+        Sc = Le*Pr
     else:
-        raise KeyError("Only 'Lewis number' and 'constant' species diffusivity model are supported.")
+        raise KeyError("Only 'Schmidt number', 'Lewis number', and 'constant' species diffusivity model are supported.")
     if 'turbulence_model' in transport_config:
         if transport_config['turbulence_model'] == 'LES':
             model = 'LES'
             assert 'LES_model' in transport_config, 'Please specify the SGS model of LES.'
-            LES_model = transport_config['LES_model']
+            LES_model = transport_config['LES_model'] + '_' + dim
             assert 'Pr_t' in transport_config, "Key 'Pr_t'(turbulent Prandtl number) must be provided"
-            assert 'Le_t' in transport_config, "Key 'Le_t'(turbulent Lewis number) must be provided"
+            assert ('Le_t' in transport_config) or ('Sc_t' in transport_config), "Key 'Sc_t'(turbulent Schmidt number) or 'Le_t'(turbulent Lewis number) must be provided"
             Pr_t = transport_config['Pr_t']
-            Le_t = transport_config['Le_t']
+            if 'Le_t' in transport_config:
+                Le_t = transport_config['Le_t']
+                Sc_t = Le_t*Pr_t
+            else:
+                Sc_t = transport_config['Sc_t']
+                Le_t = Sc_t/Pr_t
         elif transport_config['turbulence_model'] == 'laminar':
             pass
         else:
@@ -85,12 +97,12 @@ def mu_constant(rho,T):
 mu_dict = {'Sutherland':mu_Sutherland,
            'constant':mu_constant}
 
-def mu_laminar(rho,T,V,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
-    return mu_dict[nu_type](rho,T), 0
+def mu_laminar(rho,T,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
+    return mu_dict[nu_type](rho,T), 0.0
 
-def mu_LES(rho,T,V,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
+def mu_LES(rho,T,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
     mu = mu_dict[nu_type](rho,T)
-    mu_t = LES_SGS_dict[LES_model](rho,V,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz)
+    mu_t = LES_SGS_dict[LES_model](rho,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz)
     return mu + mu_t, mu_t
 
 total_mu_dict = {'laminar':mu_laminar,
@@ -112,18 +124,17 @@ kappa_dict = {'Prandtl number':kappa_Pr,
 def kappa(mu,cp,mu_t):
     return kappa_dict[k_type](mu,cp,mu_t)
 
-def D_Le(mu,cp_i,mu_t):
+def D_Le(mu,rho,cp_i,mu_t):
     k_i = (k_type=='Prandtl number')*mu/Pr + (k_type=='constant')*k0/cp_i
-    k_i = k_i
-    D_i = k_i/Le*cp_i
+    rhoD_i = k_i/Le*cp_i
     k_t = mu_t/Pr_t
-    D_t = k_t/Le_t*cp_i
-    return D_i+D_t
+    rhoD_t = k_t/Le_t*cp_i
+    return (rhoD_i+rhoD_t)/rho
 
-def D_constant(mu,cp_i,mu_t):
+def D_constant(mu,rho,cp_i,mu_t):
     k_t = mu_t/Pr_t
-    D_t = k_t/Le_t*cp_i
-    return D0+D_t
+    rhoD_t = k_t/Le_t*cp_i
+    return D0 + rhoD_t/rho
 
 D_dict = {'Lewis number':D_Le,
           'constant':D_constant}

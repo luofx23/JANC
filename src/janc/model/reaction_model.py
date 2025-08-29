@@ -31,10 +31,11 @@ nr = None
 ReactionParams = {}
 self_defined_source = None
 source_func_type = 'detailed'
+dimensions = '2D'
 
-def set_reaction(reaction_config,nondim_config=None):
-    global source_func_type,self_defined_source,ReactionParams,nr,species_M,Mex,Tcr,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
-    
+def set_reaction(reaction_config,dim,nondim_config=None):
+    global dimensions,source_func_type,self_defined_source,ReactionParams,nr,species_M,Mex,Tcr,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
+    dimensions = dim
     if reaction_config['is_detailed_chemistry']:
         assert 'mechanism_directory' in reaction_config,"You choosed detailed chemistry without specifying the directory of your mechanism files, please specify 'chemistry_mechanism_directory' in your dict of settings"
         _, ext = os.path.splitext(reaction_config['mechanism_directory'])
@@ -55,26 +56,8 @@ def set_reaction(reaction_config,nondim_config=None):
         ns = ReactionParams['num_of_species']
         ni = ReactionParams['num_of_inert_species']
         nr = ns - ni
-        def reaction_source_terms(U,aux,dt,theta=None):
-            rho = U[0:1]
-            Y = fill_Y(U[4:]/rho)
-            rhoY = rho*Y
-            T = aux[1:2]
-            X = rhoY/(Mex)
-            A, b = construct_matrix_equation(T,X,dt)
-            x = jnp.linalg.solve(A,b)
-            drhoY = jnp.transpose(x[:,:,:,0],(2,0,1))
-            dY = drhoY/rho
-            dY = jnp.clip(dY,min=-Y[0:-1],max=1-Y[0:-1])
-            S = jnp.concatenate([jnp.zeros_like(U[:4]),rho*dY],axis=0)
-            return S
-    else:
-        def reaction_source_terms(U,aux,dt,theta=None):
-            user_source = self_defined_source(U,aux,dt,theta)
-            return user_source*dt
      
     species_M,Mex,Tcr,_,_,_,_,_,_,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config)
-    return reaction_source_terms
 
 
 def get_gibbs_single(Tcr,h_cof_low,h_cof_high,s_cof_low,s_cof_high,logcof_low,logcof_high,T):
@@ -95,12 +78,12 @@ def reactionConstant_i(T, X, i, k, n):
     A = ReactionParams["A"][i]
     B = ReactionParams["B"][i]
     EakOverRu = ReactionParams["Ea/Ru"][i]
-    vf_i = ReactionParams["vf"][i,:,:,:]
-    vb_i = ReactionParams["vb"][i,:,:,:]
-    vf_ik = vf_i[k,:,:]
-    vb_ik = vb_i[k,:,:]
+    vf_i = ReactionParams["vf"][i]
+    vb_i = ReactionParams["vb"][i]
+    vf_ik = vf_i[k]
+    vb_ik = vb_i[k]
     vsum = ReactionParams["vsum"][i]
-    aij = ReactionParams["third_body_coeffs"][i,:,:,:]
+    aij = ReactionParams["third_body_coeffs"][i]
     is_third_body = ReactionParams['is_third_body'][i]
 
 
@@ -108,7 +91,7 @@ def reactionConstant_i(T, X, i, k, n):
     aij_X_sum = jnp.sum(aij*X,axis=0,keepdims=True)
     aij_X_sum = is_third_body*aij_X_sum + (1-is_third_body)
     X = jnp.clip(X,min = 1e-50)
-    log_X = jnp.log(X[0:nr,:,:])
+    log_X = jnp.log(X[0:nr])
     kf = kf_i*jnp.exp(jnp.sum(vf_i*log_X,axis=0,keepdims=True))
     
 
@@ -119,7 +102,7 @@ def reactionConstant_i(T, X, i, k, n):
     vf_in = vf_i[n]
     ain = ReactionParams["third_body_coeffs"][i,n]
     Mn = species_M[n]
-    Xn = jnp.expand_dims(X[n,:,:],0)
+    Xn = jnp.expand_dims(X[n],0)
     dwk_drhonYn_OverMk_i = (vb_ik-vf_ik)*(kf-kb)*(ain/Mn) + 1/(Mn*Xn)*(vb_ik-vf_ik)*aij_X_sum*(vf_in*kf-vb_in*kb)
 
     return w_kOverM_i, dwk_drhonYn_OverMk_i
@@ -130,9 +113,24 @@ def reaction_rate_with_derievative(T,X,k,n):
     w_kOverM_i, dwk_drhonYn_OverMk_i = vmap(reactionConstant_i,in_axes=(None,None,0,None,None))(T,X,i,k,n)
     w_k = Mk*jnp.sum(w_kOverM_i,axis=0,keepdims=False)
     dwk_drhonYn = Mk*jnp.sum(dwk_drhonYn_OverMk_i,axis=0,keepdims=False)
-    return w_k[0,:,:], dwk_drhonYn[0,:,:]
+    return w_k[0], dwk_drhonYn[0]
 
-def construct_matrix_equation(T,X,dt):
+def construct_matrix_equation_1D(T,X,dt):
+    matrix_fcn = vmap(vmap(reaction_rate_with_derievative,in_axes=(None,None,None,0)),in_axes=(None,None,0,None))
+    k = jnp.arange(nr)
+    n = jnp.arange(nr)
+    w_k, dwk_drhonYn = matrix_fcn(T,X,k,n)
+    S = jnp.transpose(w_k[:,0:1,:],(2,0,1))
+    DSDU = jnp.transpose(dwk_drhonYn,(2,0,1))
+    I = jnp.eye(nr)
+    A = I/dt - DSDU
+    b = S
+    x = jnp.linalg.solve(A,b)
+    drhoY = jnp.transpose(x[:,:,0],(1,0))
+    return drhoY
+
+
+def construct_matrix_equation_2D(T,X,dt):
     matrix_fcn = vmap(vmap(reaction_rate_with_derievative,in_axes=(None,None,None,0)),in_axes=(None,None,0,None))
     k = jnp.arange(nr)
     n = jnp.arange(nr)
@@ -142,7 +140,31 @@ def construct_matrix_equation(T,X,dt):
     I = jnp.eye(nr)
     A = I/dt - DSDU
     b = S
-    return A, b
+    x = jnp.linalg.solve(A,b)
+    drhoY = jnp.transpose(x[:,:,:,0],(2,0,1))
+    return drhoY
+
+def construct_matrix_equation_3D(T,X,dt):
+    matrix_fcn = vmap(vmap(reaction_rate_with_derievative,in_axes=(None,None,None,0)),in_axes=(None,None,0,None))
+    k = jnp.arange(nr)
+    n = jnp.arange(nr)
+    w_k, dwk_drhonYn = matrix_fcn(T,X,k,n)
+    S = jnp.transpose(w_k[:,0:1,:,:,:],(2,3,4,0,1))
+    DSDU = jnp.transpose(dwk_drhonYn,(2,3,4,0,1))
+    I = jnp.eye(nr)
+    A = I/dt - DSDU
+    b = S
+    x = jnp.linalg.solve(A,b)
+    drhoY = jnp.transpose(x[:,:,:,:,0],(3,0,1,2))
+    return drhoY
+
+matrix_equation_dict = {'1D':construct_matrix_equation_1D,
+                        '2D':construct_matrix_equation_2D,
+                        '3D':construct_matrix_equation_3D}
+
+def construct_matrix_equation(T,X,dt):
+    drhoY = matrix_equation_dict[dimensions](T,X,dt)
+    return drhoY
 
 def detailed_reaction(U,aux,dt,theta=None):
     rho = U[0:1]
@@ -150,9 +172,7 @@ def detailed_reaction(U,aux,dt,theta=None):
     rhoY = rho*Y
     T = aux[1:2]
     X = rhoY/(Mex)
-    A, b = construct_matrix_equation(T,X,dt)
-    x = jnp.linalg.solve(A,b)
-    drhoY = jnp.transpose(x[:,:,:,0],(2,0,1))
+    drhoY = construct_matrix_equation(T,X,dt)
     dY = drhoY/rho
     dY = jnp.clip(dY,min=-Y[0:-1],max=1-Y[0:-1])
     S = jnp.concatenate([jnp.zeros_like(U[:4]),rho*dY],axis=0)
@@ -167,7 +187,6 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
-
 
 
 
