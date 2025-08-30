@@ -139,11 +139,12 @@ def D_constant(mu,rho,cp_i,mu_t):
 D_dict = {'Lewis number':D_Le,
           'constant':D_constant}
 
-def D(mu,cp_i,mu_t):
-    return D_dict[D_type](mu,cp_i,mu_t)
+def D(mu,rho,cp_i,mu_t):
+    return D_dict[D_type](mu,rho,cp_i,mu_t)
 
 
 
     
     
     
+
