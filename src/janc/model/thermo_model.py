@@ -17,6 +17,7 @@ import os
 max_iter = 5
 tol = 5e-9
 
+R_constant = None
 species_M = None
 Mex = None
 Tcr = None
@@ -34,10 +35,11 @@ logcof_low = None
 logcof_high = None
 n = None
 thermo_settings={'thermo_model':'nasa7'}
+gas_constant = 'Y-dependent'
 
 
 def set_thermo(thermo_config,nondim_config=None):
-    global ReactionParams,thermo_settings,n,species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
+    global gas_constant,R_constant,ReactionParams,thermo_settings,n,species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
     
     if thermo_config['thermo_model']=='nasa7':
         assert 'mechanism_directory' in thermo_config,"Please specify 'mechanism_directory' in your dict of settings"
@@ -46,8 +48,12 @@ def set_thermo(thermo_config,nondim_config=None):
         if not os.path.isfile(thermo_config['mechanism_directory']):
             raise FileNotFoundError('No mechanism file detected in the specified directory.')
     elif thermo_config['thermo_model']=='constant_gamma':
-        assert 'species' in thermo_config, "A list of strings containing the name of the species must be provided in the dict of settings with key name 'species'. Example:['H2','O2',...]."
+        assert ('species' in thermo_config) or ('gas_constant' in thermo_config), "A list of strings containing the name of the species should be provided in the dict of settings with key name 'species'(Example:['H2','O2',...]) or value for gas constant with key name 'gas_constant' should be provided."
         assert 'gamma' in thermo_config, "The constant_gamma model require the value of gamma to be specified in the setting dict with key name 'gamma'."
+        if 'gas_constant' in thermo_config:
+            gas_constant = 'constant'
+            R_constant = thermo_config['gas_constant']
+            
     else:
         raise KeyError("The thermo model you specified is not supported, only 'nasa7' or 'constant_gamma' can be specified.")
           
@@ -69,12 +75,21 @@ def fill_Y(Y):
     Y_last = 1.0 - jnp.sum(Y,axis=0,keepdims=True)
     return jnp.concatenate([Y,Y_last],axis=0)
 
-def get_R(Y):
+def get_R_constant(Y):
+    return jnp.full_like(Y[0:1],R_constant)
+
+def get_R_Y_dependent(Y):
     Y = fill_Y(Y)
     #expand_axes = range(species_M.ndim, Y.ndim)
     #Mex = jnp.expand_dims(species_M, tuple(expand_axes))
     R = jnp.sum(1/Mex*Y,axis=0,keepdims=True)
     return R
+
+R_dict = {'Y-dependent':get_R_Y_dependent,
+          'constant':get_R_constant}
+
+def get_R(Y):
+    return R_dict[gas_constant](Y)
 
 def get_thermo_properties_single(Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,T):
     mask = T<Tcr
@@ -170,7 +185,6 @@ get_T_nasa7.defvjp(get_T_fwd, get_T_bwd)
 
 def get_thermo_constant_gamma(T, Y):
     R = get_R(Y)
-    Y = fill_Y(Y)
     gamma = thermo_settings['gamma']
     cp = gamma/(gamma-1)*R
     h = cp*T
@@ -202,3 +216,4 @@ def get_T(e,Y,initial_T):
     
     
     
+
