@@ -63,7 +63,10 @@ def set_thermo(thermo_config,nondim_config=None):
         species_list = gas.species_names
         mech = thermo_config['mechanism_directory']
     else:
-        species_list = thermo_config['species']
+        if 'gas_constant' in thermo_config:
+            species_list = ['N2']
+        else:
+            species_list = thermo_config['species']
         mech = 'gri30.yaml'#thermo_config['mechanism_directory']
 
     
@@ -216,4 +219,5 @@ def get_T(e,Y,initial_T):
     
     
     
+
 
