@@ -1,9 +1,7 @@
 import jax.numpy as jnp
 from ..solver import aux_func
-from .reconstruction import reconstruction_L_x_dict,reconstruction_R_x_dict,\
-                            reconstruction_L_y_dict,reconstruction_R_y_dict,\
-                            reconstruction_x_dict,reconstruction_y_dict
-from .finite_difference import d_dx_dict,d_dy_dict
+from .reconstruction import reconstruction_L_x_dict,reconstruction_R_x_dict
+from .finite_difference import d_dx_dict
 from .riemann_solver import riemann_solver_dict
 from .flux_splitting import split_flux_dict
 from ..model import thermo_model, transport_model
@@ -115,4 +113,5 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,metrics):
     return total_flux_dict[viscosity](U,aux,metrics)
+
 
