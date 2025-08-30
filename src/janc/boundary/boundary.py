@@ -4,9 +4,9 @@ from .boundary_padding import pad_1D,pad_2D,pad_3D,\
                         replace_lb_1D, replace_rb_1D, \
                         replace_lb_2D, replace_rb_2D, replace_ub_2D, replace_bb_2D,\
                         replace_lb_3D, replace_rb_3D, replace_ub_3D, replace_bb_3D,replace_fb_3D, replace_backb_3D
-from .boundary_conditions_1D import left_bd_dict,right_bd_dict as left_bd_dict_1D,right_bd_dict_1D
-from .boundary_conditions_2D import left_bd_dict,right_bd_dict,bottom_bd_dict,top_bd_dict as left_bd_dict_2D,right_bd_dict_2D,bottom_bd_dict_2D,top_bd_dict_2D
-from .boundary_conditions_3D import left_bd_dict,right_bd_dict,bottom_bd_dict,top_bd_dict,front_bd_dict,back_bd_dict as left_bd_dict_3D,right_bd_dict_3D,bottom_bd_dict_3D,top_bd_dict_3D,front_bd_dict_3D,back_bd_dict_3D
+from .boundary_conditions_1D import left_bd_dict_1D,right_bd_dict_1D
+from .boundary_conditions_2D import left_bd_dict_2D,right_bd_dict_2D,bottom_bd_dict_2D,top_bd_dict_2D
+from .boundary_conditions_3D import left_bd_dict_3D,right_bd_dict_3D,bottom_bd_dict_3D,top_bd_dict_3D,front_bd_dict_3D,back_bd_dict_3D
 
 
 
@@ -281,4 +281,5 @@ def boundary_conditions_3D(U, aux, metrics, theta=None):
     U_with_fb,aux_with_fb = boundary_func['front_boundary'](U_with_ub,aux_with_ub,metrics,theta)
     U_with_ghost_cell,aux_with_ghost_cell = boundary_func['back_boundary'](U_with_fb,aux_with_fb,metrics,theta)
     return U_with_ghost_cell,aux_with_ghost_cell
+
 
