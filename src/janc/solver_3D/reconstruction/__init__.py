@@ -20,10 +20,24 @@ reconstruction_R_y_dict = {
     "WENO5_JS": WENO5_JS.interface_R_y
 }
 
+reconstruction_L_z_dict = {
+    "MUSCL": MUSCL.interface_L_z,
+    "WENO5_JS": WENO5_JS.interface_L_z
+}
+
+reconstruction_R_z_dict = {
+    "MUSCL": MUSCL.interface_R_z,
+    "WENO5_JS": WENO5_JS.interface_R_z
+}
+
 reconstruction_x_dict = {
     "CENTRAL6": CENTRAL6.interface_x
 }
 
 reconstruction_y_dict = {
     "CENTRAL6": CENTRAL6.interface_y
+}
+
+reconstruction_z_dict = {
+    "CENTRAL6": CENTRAL6.interface_z
 }
