@@ -24,7 +24,42 @@ def read_dat(file_path):
     Y = jnp.array(raw_grid[1:,1].reshape((nx,ny)))
     return X, Y
 
-def set_grid(grid_config):
+def set_grid_1D(grid_config):
+    global metrics,dx,dy,nx,ny
+    if 'grid_file_path' in grid_config:
+        grid_path = read_dat(grid_config['grid_file_path'])
+        _, ext = os.path.splitext(grid_path)
+        assert ext.lower() == '.dat', "janc only read grid file with Pointwise_R18+【.dat】 format."
+        if not os.path.isfile(grid_path):
+            raise FileNotFoundError('No grid file detected in the specified directory.')
+        X = read_dat(grid_path)
+        nx = X.shape[0]-1
+        x_f = X[1:]
+        x_b = X[:-1]
+        η_dx = x_f - x_b
+        dx_dξ = η_dx
+        J = η_dx
+        Jc = J
+        dξ_dx = 1/dx_dξ
+        
+        metrics={'J':J[None,:],'Jc':jnp.pad(Jc[None,:],((0,0),(3,3)),mode='edge'),
+                 'dξ_dx':jnp.pad(dξ_dx[None,:],((0,0),(3,3)),mode='edge')}
+    else:
+        metrics={
+         'J':1.0,'Jc':1.0,
+         'dξ_dx':1.0}     
+        Lx = grid_config['Lx']
+        nx = grid_config['Nx']
+        dx = Lx/nx
+        metrics['J'] = dx
+        metrics['Jc'] = dx
+        metrics['dξ_dx'] = 1.0/dx
+    return metrics
+
+
+
+
+def set_grid_2D(grid_config):
     global metrics,dx,dy,nx,ny
     if 'grid_file_path' in grid_config:
         grid_path = read_dat(grid_config['grid_file_path'])
@@ -112,4 +147,5 @@ def set_grid(grid_config):
         metrics['dξ_dx'] = 1/dx
         metrics['dη_dy'] = 1/dy
     return metrics
+
 
