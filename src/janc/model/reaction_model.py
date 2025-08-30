@@ -56,6 +56,9 @@ def set_reaction(reaction_config,dim,nondim_config=None):
         ns = ReactionParams['num_of_species']
         ni = ReactionParams['num_of_inert_species']
         nr = ns - ni
+    else:
+        species_list = ['N2']
+        mech = 'gri30.yaml'
      
     species_M,Mex,Tcr,_,_,_,_,_,_,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config)
 
@@ -187,6 +190,7 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
