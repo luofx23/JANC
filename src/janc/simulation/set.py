@@ -37,7 +37,7 @@ def set_simulation(simulation_config):
         rhs = rhs_3D
         time_step = time_step_3D
         aux_func = aux_func_3D
-    rhs.set_rhs(dim, thermo_config, reaction_config, flux_config, transport_config, boundary_config, source_config)
+    rhs.set_rhs(thermo_config, reaction_config, flux_config, transport_config, boundary_config, source_config)
     time_scheme = simulation_config['temporal_evolution_scheme']
     if reaction_config['is_detailed_chemistry']:
         @jit
@@ -53,4 +53,5 @@ def set_simulation(simulation_config):
             
 
     
+
 
