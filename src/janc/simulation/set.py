@@ -1,8 +1,14 @@
 from jax import jit
 import jax.numpy as jnp
-from ..solver_1D import rhs,time_step,aux_func as rhs_1D,time_step_1D,aux_func_1D
-from ..solver_2D import rhs,time_step,aux_func as rhs_2D,time_step_2D,aux_func_2D
-from ..solver_3D import rhs,time_step,aux_func as rhs_3D,time_step_3D,aux_func_3D
+from ..solver_1D import rhs as rhs_1D
+from ..solver_1D import time_step as time_step_1D
+from ..solver_1D import aux_func as aux_func_1D
+from ..solver_2D import rhs as rhs_2D
+from ..solver_2D import time_step as time_step_2D
+from ..solver_2D import aux_func as aux_func_2D
+from ..solver_3D import rhs as rhs_3D
+from ..solver_3D import time_step as time_step_3D
+from ..solver_3D import aux_func as aux_func_3D
 from ..model import reaction_model
 
 def set_simulation(simulation_config):
@@ -47,3 +53,4 @@ def set_simulation(simulation_config):
             
 
     
+
