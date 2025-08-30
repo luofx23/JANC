@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from ..solver import aux_func
+from . import aux_func
 from .reconstruction import reconstruction_L_x_dict,reconstruction_R_x_dict,\
                             reconstruction_L_y_dict,reconstruction_R_y_dict,\
                             reconstruction_x_dict,reconstruction_y_dict
@@ -154,4 +154,5 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,metrics):
     return total_flux_dict[viscosity](U,aux,metrics)
+
 
