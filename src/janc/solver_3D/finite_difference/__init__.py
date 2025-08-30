@@ -7,3 +7,7 @@ d_dx_dict = {
 d_dy_dict = {
     "CENTRAL6": CENTRAL6.d_dy
 }
+
+d_dz_dict = {
+    "CENTRAL6": CENTRAL6.d_dz
+}
