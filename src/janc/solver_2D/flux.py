@@ -41,8 +41,8 @@ def godunov_flux(U,aux,metrics):
     q_R_x = reconstruction_R_x_dict[interface_reconstruction](q)
     q_L_y = reconstruction_L_y_dict[interface_reconstruction](q)
     q_R_y = reconstruction_R_y_dict[interface_reconstruction](q)
-    ξ_n_x,ξ_n_y = metrics['ξ_n_x'],metrics['ξ_n_y']
-    η_n_x,η_n_y = metrics['η_n_x'],metrics['η_n_y']
+    ξ_n_x,ξ_n_y = metrics['ξ-n_x'],metrics['ξ-n_y']
+    η_n_x,η_n_y = metrics['η-n_x'],metrics['η-n_y']
     u_L_x = q_L_x[1:2]*ξ_n_x+q_L_x[2:3]*ξ_n_y
     v_L_x = -q_L_x[1:2]*ξ_n_y + q_L_x[2:3]*ξ_n_x
     u_R_x = q_R_x[1:2]*ξ_n_x+q_R_x[2:3]*ξ_n_y
@@ -154,5 +154,6 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,metrics):
     return total_flux_dict[viscosity](U,aux,metrics)
+
 
 
