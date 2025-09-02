@@ -34,12 +34,12 @@ s_cof_high = None
 logcof_low = None
 logcof_high = None
 n = None
-thermo_settings={'thermo_model':'nasa7'}
+thermo_model = 'nasa7'
 gas_constant = 'Y-dependent'
 
 
 def set_thermo(thermo_config,nondim_config=None):
-    global gas_constant,R_constant,ReactionParams,thermo_settings,n,species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
+    global gas_constant,R_constant,ReactionParams,thermo_model,n,species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
     
     if thermo_config['thermo_model']=='nasa7':
         assert 'mechanism_directory' in thermo_config,"Please specify 'mechanism_directory' in your dict of settings"
@@ -48,6 +48,7 @@ def set_thermo(thermo_config,nondim_config=None):
         if not os.path.isfile(thermo_config['mechanism_directory']):
             raise FileNotFoundError('No mechanism file detected in the specified directory.')
     elif thermo_config['thermo_model']=='constant_gamma':
+        thermo_model = 'constant_gamma'
         assert ('species' in thermo_config) or ('gas_constant' in thermo_config), "A list of strings containing the name of the species should be provided in the dict of settings with key name 'species'(Example:['H2','O2',...]) or value for gas constant with key name 'gas_constant' should be provided."
         assert 'gamma' in thermo_config, "The constant_gamma model require the value of gamma to be specified in the setting dict with key name 'gamma'."
         if 'gas_constant' in thermo_config:
@@ -71,7 +72,6 @@ def set_thermo(thermo_config,nondim_config=None):
 
     
     species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config)
-    thermo_settings = thermo_config
 
 
 def fill_Y(Y):
@@ -209,15 +209,16 @@ get_T_func_dict = {'nasa7':get_T_nasa7,
                    'constant_gamma':get_T_constant_gamma}
 
 def get_thermo(T,Y):
-    return get_thermo_func_dict[thermo_settings['thermo_model']](T,Y)
+    return get_thermo_func_dict[thermo_model](T,Y)
 
 def get_T(e,Y,initial_T):
-    return get_T_func_dict[thermo_settings['thermo_model']](e,Y,initial_T)
+    return get_T_func_dict[thermo_model](e,Y,initial_T)
 
 
 
     
     
     
+
 
 
