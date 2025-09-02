@@ -37,13 +37,7 @@ def godunov_flux(U,aux,metrics):
     q = jnp.concatenate([rho,u,p,Y],axis=0)
     q_L_x = reconstruction_L_x_dict[interface_reconstruction](q)
     q_R_x = reconstruction_R_x_dict[interface_reconstruction](q)
-    u_L_x = q_L_x[1:2]
-    u_R_x = q_R_x[1:2]
-    q_L_x = q_L_x.at[1:2].set(u_L_x)
-    q_R_x = q_R_x.at[1:2].set(u_R_x)
-    F_interface = riemann_solver_dict[riemann_solver](q_L_x,q_R_x)
-    F = jnp.concatenate([F_interface[0:1],F_interface[1:2],
-                         F_interface[2:]],axis=0)
+    F = riemann_solver_dict[riemann_solver](q_L_x,q_R_x)
     dF = F[:,1:]-F[:,:-1]
     net_flux = dF/metrics['J']
     return -net_flux
@@ -112,6 +106,7 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,metrics):
     return total_flux_dict[viscosity](U,aux,metrics)
+
 
 
 
