@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from .. import aux_func
 
-def split_flux(ixy, U, aux, metrics):
+def split_flux(U, aux, metrics):
     rho,u,Y,p,a = aux_func.U_to_prim(U,aux)
     rhoE = U[2:3]
     gamma = aux[0:1]
