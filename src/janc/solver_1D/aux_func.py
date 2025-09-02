@@ -19,10 +19,10 @@ def set_source_terms(user_set):
             user_source = zero_source_terms
         
 def update_aux(U,aux):
-    rho = U[0:1,:,:]
-    u = U[1:2,:,:]/rho
-    e = U[2:3,:,:]/rho - 0.5*(u**2)
-    Y = U[3:,:,:]/rho
+    rho = U[0:1]
+    u = U[1:2]/rho
+    e = U[2:3]/rho - 0.5*(u**2)
+    Y = U[3:]/rho
     initial_T = aux[1:2]
     aux_new = thermo.get_T(e,Y,initial_T)
     return aux.at[0:2].set(aux_new)
@@ -39,9 +39,9 @@ def aux_to_thermo(U,aux):
 def U_to_prim(U,aux):
     state = U
     gamma,T = aux_to_thermo(U,aux)
-    rho = state[0:1,:,:]
-    u = state[1:2,:,:]/rho
-    Y = state[3:,:,:]/rho
+    rho = state[0:1]
+    u = state[1:2]/rho
+    Y = state[3:]/rho
     R = thermo.get_R(Y)#.astype(jnp.float32)
     p = (rho*R*T)
     #rhoe = state[3:4,:,:]-0.5*rho*(u**2+v**2)
@@ -49,6 +49,7 @@ def U_to_prim(U,aux):
     a = jnp.sqrt(gamma*p/rho)
     return rho,u,Y,p,a
     
+
 
 
 
