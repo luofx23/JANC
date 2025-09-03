@@ -6,9 +6,10 @@ def split_flux(U, aux, metrics):
     rhoE = U[2:3]
     gamma = aux[0:1]
     
-    dξ_dx = metrics['dξ_dx']
-    J = metrics['Jc']
-    zx = dξ_dx
+    #dξ_dx = metrics['dξ_dx']
+    #J = metrics['Jc']
+    J = 1.0
+    zx = 1.0#dξ_dx
     theta = zx * u
 
     H1 = J*(1 / (2 * gamma)) * jnp.concatenate([rho, rho * u - rho * a * zx,
