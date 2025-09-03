@@ -19,8 +19,9 @@ def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_
 def rhs(U, aux, metrics, dt, theta):
     U_with_ghost,aux_with_ghost = boundary.boundary_conditions_1D(U,aux,metrics,theta)
     #rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics)
-    return dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics)
+    return dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics))
     
+
 
 
 
