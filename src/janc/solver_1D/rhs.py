@@ -18,7 +18,8 @@ def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_
 
 def rhs_explicit(U, aux, metrics, dt, theta):
     U_with_ghost,aux_with_ghost = boundary.boundary_conditions_1D(U,aux,metrics,theta)
-    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics) #+ aux_func.user_source(U,aux,theta)) + reaction_model.reaction_source_terms(U,aux,dt,theta)
+    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics) 
+    #+ aux_func.user_source(U,aux,theta)) + reaction_model.reaction_source_terms(U,aux,dt,theta)
     return rhs
 
 def rhs_implicit(U, aux, metrics, dt, theta):
@@ -32,6 +33,7 @@ rhs_dict = {'off':rhs_explicit,
 def rhs(U, aux, metrics,dt, theta):
     return rhs_dict[point_implicit](U,aux,metrics,dt,theta)
     
+
 
 
 
