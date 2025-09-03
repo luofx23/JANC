@@ -20,7 +20,6 @@ def rhs_explicit(U, aux, metrics, dt, theta):
     U_with_ghost,aux_with_ghost = boundary.boundary_conditions_1D(U,aux,metrics,theta)
     #rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics)
     return dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics)
-
 def rhs_implicit(U, aux, metrics, dt, theta):
     U_with_ghost,aux_with_ghost = boundary.boundary_conditions_1D(U,aux,metrics,theta)
     #rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics)
@@ -32,6 +31,7 @@ rhs_dict = {'off':rhs_explicit,
 def rhs(U, aux, metrics,dt, theta):
     return rhs_dict[point_implicit](U,aux,metrics,dt,theta)
     
+
 
 
 
