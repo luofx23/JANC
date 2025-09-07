@@ -19,8 +19,8 @@ def set_source_terms(user_set):
             user_source = zero_source_terms
         
 
-def source_terms(U,aux,theta=None):
-    return user_source(U,aux,theta)
+def source_terms(U,theta=None):
+    return user_source(U,theta)
 
 def U_to_prim(U):
     rho = U[0:1]
@@ -29,6 +29,7 @@ def U_to_prim(U):
     p = (U[3:4]-0.5*rho*(u**2+v**2))*(thermo.gamma-1)
     a = jnp.sqrt(thermo.gamma*p/rho)
     return rho,u,v,p,a
+
 
 
 
