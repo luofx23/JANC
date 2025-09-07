@@ -11,14 +11,14 @@ C3 = 3 / 10
 
 
 @jit
-def splitFlux_LF(ixy, U, aux):
-    rho,u,v,Y,p,a = aux_func.U_to_prim(U,aux)
+def splitFlux_LF(ixy, U):
+    rho,u,v,p,a = aux_func.U_to_prim(U)
     rhoE = U[3:4,:,:]
 
     zx = (ixy == 1) * 1
     zy = (ixy == 2) * 1
 
-    F = zx*jnp.concatenate([rho * u, rho * u ** 2 + p, rho * u * v, u * (rhoE + p), rho * u * Y], axis=0) + zy*jnp.concatenate([rho * v, rho * u * v, rho * v ** 2 + p, v * (rhoE + p), rho * v * Y], axis=0)
+    F = zx*jnp.concatenate([rho * u, rho * u ** 2 + p, rho * u * v, u * (rhoE + p)], axis=0) + zy*jnp.concatenate([rho * v, rho * u * v, rho * v ** 2 + p, v * (rhoE + p)], axis=0)
     um = jnp.nanmax(abs(u) + a)
     vm = jnp.nanmax(abs(v) + a)
     theta = zx*um + zy*vm
@@ -149,9 +149,9 @@ def WENO_minus_y(f):
     return fj_halfm
 
 @jit
-def weno5(U,aux,dx,dy):
-    Fplus, Fminus = splitFlux_LF(1, U, aux)
-    Gplus, Gminus = splitFlux_LF(2, U, aux)
+def weno5(U,dx,dy):
+    Fplus, Fminus = splitFlux_LF(1, U)
+    Gplus, Gminus = splitFlux_LF(2, U)
 
     dFp = WENO_plus_x(Fplus)
     dFp = (dFp[:,1:,:] - dFp[:,0:-1,:])
@@ -169,3 +169,4 @@ def weno5(U,aux,dx,dy):
     netflux = dF/dx + dG/dy
 
     return -netflux  
+
