@@ -8,9 +8,6 @@ from ..parallel import boundary as parallel_boundary
 from ..parallel import grid_partion
 from functools import partial
 
-
-from jaxamr import amr
-
 def CFL(U,dx,dy,cfl=0.50):
     _,u,v,_,a = aux_func.U_to_prim(U,aux)
     cx = jnp.max(abs(u) + a)
@@ -62,6 +59,7 @@ def set_solver(thermo_set, boundary_set, source_set = None, nondim_set = None, s
         
 
     
+
 
 
 
