@@ -9,7 +9,7 @@ from ..parallel import grid_partion
 from functools import partial
 
 def CFL(U,dx,dy,cfl=0.50):
-    _,u,v,_,a = aux_func.U_to_prim(U,aux)
+    _,u,v,_,a = aux_func.U_to_prim(U)
     cx = jnp.max(abs(u) + a)
     cy = jnp.max(abs(v) + a)
     dt = jnp.minimum(cfl*dx/cx,cfl*dy/cy)
@@ -59,6 +59,7 @@ def set_solver(thermo_set, boundary_set, source_set = None, nondim_set = None, s
         
 
     
+
 
 
 
