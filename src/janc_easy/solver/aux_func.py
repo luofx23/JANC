@@ -27,8 +27,9 @@ def U_to_prim(U):
     u = U[1:2]/rho
     v = U[2:3]/rho
     p = (U[3:4]-0.5*rho*(u**2+v**2))*(thermo.gamma-1)
-    a = jnp.sqrt(gamma*p/rho)
+    a = jnp.sqrt(thermo.gamma*p/rho)
     return rho,u,v,p,a
+
 
 
 
