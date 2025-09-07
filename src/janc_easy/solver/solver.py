@@ -11,9 +11,8 @@ from functools import partial
 
 from jaxamr import amr
 
-def CFL(field,dx,dy,cfl=0.20):
-    U, aux = field[0:-2],field[-2:]
-    _,u,v,_,_,a = aux_func.U_to_prim(U,aux)
+def CFL(U,dx,dy,cfl=0.50):
+    _,u,v,_,a = aux_func.U_to_prim(U,aux)
     cx = jnp.max(abs(u) + a)
     cy = jnp.max(abs(v) + a)
     dt = jnp.minimum(cfl*dx/cx,cfl*dy/cy)
@@ -42,9 +41,11 @@ def set_solver(thermo_set, boundary_set, source_set = None, nondim_set = None, s
         return U3
   
     @jit    
-    def advance_one_step(field,dx,dy,dt,theta=None):
+    def advance_one_step(field,dx,dy,theta=None,time=0.0):
+        dt = CFL(field,dx,dy)
         field = advance_flux(field,dx,dy,dt,theta)
-        return field
+        time = time + dt
+        return field, time
 
     if is_parallel:
         if parallel_set is not None:
@@ -61,6 +62,7 @@ def set_solver(thermo_set, boundary_set, source_set = None, nondim_set = None, s
         
 
     
+
 
 
 
