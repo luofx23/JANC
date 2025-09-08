@@ -19,8 +19,8 @@ def splitFlux_LF(ixy, U):
     zy = (ixy == 2) * 1
 
     F = zx*jnp.concatenate([rho * u, rho * u ** 2 + p, rho * u * v, u * (rhoE + p)], axis=0) + zy*jnp.concatenate([rho * v, rho * u * v, rho * v ** 2 + p, v * (rhoE + p)], axis=0)
-    um = jnp.nanmax(abs(u) + a)
-    vm = jnp.nanmax(abs(v) + a)
+    um = abs(u) + a#jnp.nanmax(abs(u) + a)
+    vm = abs(v) + a#jnp.nanmax(abs(v) + a)
     theta = zx*um + zy*vm
     Hplus = 0.5 * (F + theta * U)
     Hminus = 0.5 * (F - theta * U)
@@ -367,6 +367,7 @@ def HLLC(U,dx,dy):
     dG = G[:,:,1:]-G[:,:,:-1]
     netflux = dF/dx + dG/dy
     return -netflux
+
 
 
 
