@@ -180,8 +180,9 @@ def HLLC_flux(q_L_x,q_R_x,q_L_y,q_R_y):
     v_L,v_R = q_L_x[2:3],q_R_x[2:3]
     E_L = p_L_x/(thermo.gamma-1)+0.5*rho_L_x*(u_L**2+v_L**2)
     E_R = p_R_x/(thermo.gamma-1)+0.5*rho_R_x*(u_R**2+v_R**2)
-    s_L = jnp.minimum(u_L-a_L,u_R-a_R)
-    s_R = jnp.maximum(u_L+a_L,u_R+a_R)
+    
+    #s_L = jnp.minimum(u_L-a_L,u_R-a_R)
+    #s_R = jnp.maximum(u_L+a_L,u_R+a_R)
     s_M = (p_R_x-p_L_x+rho_L_x*u_L*(s_L-u_L)-rho_R_x*u_R*(s_R-u_R))/(rho_L_x*(s_L-u_L)-rho_R_x*(s_R-u_R))
     U_L = jnp.concatenate([rho_L_x,rho_L_x*u_L,rho_L_x*v_L,E_L],axis=0)
     U_L_M = rho_L_x*(s_L-u_L)/(s_L-s_M)*jnp.concatenate([jnp.ones_like(s_M),s_M,v_L,E_L/rho_L_x+(s_M-u_L)*(s_M+p_L_x/(rho_L_x*(s_L-u_L)))],axis=0)
@@ -233,6 +234,126 @@ def HLLC_flux(q_L_x,q_R_x,q_L_y,q_R_y):
     
     return F_HLLC,G_HLLC
 
+
+
+def to_characteristic_x(q,u,v,H,a):
+    gamma = thermo.gamma
+    gamma1 = gamma - 1
+    D = -2*a**2/gamma1
+    Lx = jnp.stack([
+        jnp.concatenate([
+            (-2*H*u - a*u**2 - a*v**2 + u**3 + u*v**2)/(2*a*D),
+            (H + a*u - 0.5*(u**2+v**2))/(a*D),
+            v/D,
+            -1.0/D
+        ], axis=0),
+        
+        jnp.concatenate([
+            2*(-H + u**2 + v**2)/D,
+            -2*u/D,
+            -2*v/D,
+            2.0/D
+        ], axis=0),
+        
+        jnp.concatenate([-v, jnp.zeros_like(v), jnp.ones_like(v), jnp.zeros_like(v)], axis=0),
+        
+        jnp.concatenate([
+            (2*H*u - a*u**2 - a*v**2 - u**3 - u*v**2)/(2*a*D),
+            (-H + a*u + 0.5*(u**2+v**2))/(a*D),
+            v/D,
+            -1.0/D
+        ], axis=0)
+    ], axis=0)  # (4,4,Nx,Ny)
+    
+    return jnp.einsum('ijxy,jxy->ixy', Lx, q)
+
+def from_characteristic_x(q_char,u,v,H,a):
+    Rx = jnp.stack([
+        jnp.concatenate([jnp.ones_like(u), jnp.ones_like(u), jnp.zeros_like(u), jnp.ones_like(u)], axis=0),
+        jnp.concatenate([u-a, u, jnp.zeros_like(u), u+a], axis=0),
+        jnp.concatenate([v, v, jnp.ones_like(u), v], axis=0),
+        jnp.concatenate([H-u*a, 0.5*(u**2+v**2), v, H+u*a], axis=0)
+    ], axis=0)  # (4,4,Nx,Ny)
+    
+    return jnp.einsum('ijxy,jxy->ixy', Rx, q_char)
+
+# ========================
+# Y direction
+# ========================
+
+def to_characteristic_y(q,u,v,H,a):
+    gamma = thermo.gamma
+    gamma1 = gamma - 1
+    D = -2*a**2/gamma1
+    
+    Ly = jnp.stack([
+        jnp.concatenate([
+            (-2*H*v - a*u**2 - a*v**2 + v**3 + u**2*v)/(2*a*D),
+            (H + a*v - 0.5*(u**2+v**2))/(a*D),
+            u/D,
+            -1.0/D
+        ], axis=0),
+        
+        jnp.concatenate([
+            2*(-H + u**2 + v**2)/D,
+            -2*u/D,
+            -2*v/D,
+            2.0/D
+        ], axis=0),
+        
+        jnp.concatenate([-u, jnp.ones_like(u), jnp.zeros_like(u), jnp.zeros_like(u)], axis=0),
+        
+        jnp.concatenate([
+            (2*H*v - a*u**2 - a*v**2 - v**3 - u**2*v)/(2*a*D),
+            (-H + a*v + 0.5*(u**2+v**2))/(a*D),
+            u/D,
+            -1.0/D
+        ], axis=0)
+    ], axis=0)  # (4,4,Nx,Ny)
+    
+    return jnp.einsum('ijxy,jxy->ixy', Ly, q)
+
+def from_characteristic_y(q_char,u,v,H,a):
+    Ry = jnp.stack([
+        jnp.concatenate([jnp.ones_like(u), jnp.ones_like(u), jnp.zeros_like(u), jnp.ones_like(u)], axis=0),
+        jnp.concatenate([u, u, jnp.ones_like(u), u], axis=0),
+        jnp.concatenate([v-a, v, jnp.zeros_like(u), v+a], axis=0),
+        jnp.concatenate([H-v*a, 0.5*(u**2+v**2), u, H+v*a], axis=0)
+    ], axis=0)  # (4,4,Nx,Ny)
+    
+    return jnp.einsum('ijxy,jxy->ixy', Ry, q_char)
+
+def T_matrix(q,rho,u,v):
+    gamma = thermo.gamma
+    gamma1 = gamma-1
+    rho, u, v, E, p = primitive_vars(U)
+    T = jnp.stack([
+        jnp.concatenate([jnp.ones_like(rho), jnp.zeros_like(rho), jnp.zeros_like(rho), jnp.zeros_like(rho)], axis=0),
+        jnp.concatenate([u, rho, jnp.zeros_like(rho), jnp.zeros_like(rho)], axis=0),
+        jnp.concatenate([v, jnp.zeros_like(rho), rho, jnp.zeros_like(rho)], axis=0),
+        jnp.concatenate([0.5*(u**2+v**2), rho*u, rho*v, 1.0/gamma1], axis=0)
+    ], axis=0)  # (4,4,Nx,Ny)
+    return jnp.einsum("ijxy,jxy->ixy", T, q)
+
+def Tinv_matrix(q,rho,u,v):
+    gamma = thermo.gamma
+    gamma1 = gamma-1
+    Tinv = jnp.stack([
+        jnp.concatenate([jnp.ones_like(rho), jnp.zeros_like(rho), jnp.zeros_like(rho), jnp.zeros_like(rho)], axis=0),
+        jnp.concatenate([-u/rho, 1.0/rho, jnp.zeros_like(rho), jnp.zeros_like(rho)], axis=0),
+        jnp.concatenate([-v/rho, jnp.zeros_like(rho), 1.0/rho, jnp.zeros_like(rho)], axis=0),
+        jnp.concatenate([gamma1*(0.5*(u**2+v**2)),
+                   -gamma1*u,
+                   -gamma1*v,
+                   gamma1], axis=0)
+    ], axis=0)  # (4,4,Nx,Ny)
+    return jnp.einsum("ijxy,jxy->ixy", Tinv, qc)
+
+
+
+    
+
+
 @jit
 def HLLC(U,dx,dy):
     rho,u,v,p,a = aux_func.U_to_prim(U)
@@ -246,4 +367,7 @@ def HLLC(U,dx,dy):
     dG = G[:,:,1:]-G[:,:,:-1]
     netflux = dF/dx + dG/dy
     return -netflux
+
+
+
 
