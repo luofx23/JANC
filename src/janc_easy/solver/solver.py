@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import jit,vmap,pmap
 from ..solver import aux_func
-from .flux import weno5
+from .flux import weno5,HLLC
 from ..thermodynamics import thermo
 from ..boundary import boundary
 from ..parallel import boundary as parallel_boundary
@@ -28,7 +28,7 @@ def set_solver(thermo_set, boundary_set, source_set = None, nondim_set = None, s
     
     def rhs(U,dx,dy,theta=None):
         U_with_ghost = boundary_conditions(U,theta)
-        physical_rhs = weno5(U_with_ghost,dx,dy) + aux_func.source_terms(U, theta)
+        physical_rhs = HLLC(U_with_ghost,dx,dy) + aux_func.source_terms(U, theta)
         return physical_rhs
 
     def advance_flux(U,dx,dy,dt,theta=None):
@@ -59,6 +59,7 @@ def set_solver(thermo_set, boundary_set, source_set = None, nondim_set = None, s
         
 
     
+
 
 
 
