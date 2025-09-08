@@ -181,8 +181,8 @@ def HLLC_flux(q_L_x,q_R_x,q_L_y,q_R_y):
     E_L = p_L_x/(thermo.gamma-1)+0.5*rho_L_x*(u_L**2+v_L**2)
     E_R = p_R_x/(thermo.gamma-1)+0.5*rho_R_x*(u_R**2+v_R**2)
     
-    #s_L = jnp.minimum(u_L-a_L,u_R-a_R)
-    #s_R = jnp.maximum(u_L+a_L,u_R+a_R)
+    s_L = jnp.minimum(u_L-a_L,u_R-a_R)
+    s_R = jnp.maximum(u_L+a_L,u_R+a_R)
     s_M = (p_R_x-p_L_x+rho_L_x*u_L*(s_L-u_L)-rho_R_x*u_R*(s_R-u_R))/(rho_L_x*(s_L-u_L)-rho_R_x*(s_R-u_R))
     U_L = jnp.concatenate([rho_L_x,rho_L_x*u_L,rho_L_x*v_L,E_L],axis=0)
     U_L_M = rho_L_x*(s_L-u_L)/(s_L-s_M)*jnp.concatenate([jnp.ones_like(s_M),s_M,v_L,E_L/rho_L_x+(s_M-u_L)*(s_M+p_L_x/(rho_L_x*(s_L-u_L)))],axis=0)
@@ -367,6 +367,7 @@ def HLLC(U,dx,dy):
     dG = G[:,:,1:]-G[:,:,:-1]
     netflux = dF/dx + dG/dy
     return -netflux
+
 
 
 
