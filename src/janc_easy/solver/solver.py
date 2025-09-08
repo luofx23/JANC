@@ -10,8 +10,9 @@ from functools import partial
 
 def CFL(U,dx,dy,cfl=0.50):
     _,u,v,_,a = aux_func.U_to_prim(U)
-    c = jnp.max(jnp.sqrt(u**2+v**2) + a)
-    dt = jnp.minimum(cfl*dx/c,cfl*dy/c)
+    sx = jnp.max(jnp.abs(u) + a)
+    sy = jnp.max(jnp.abs(v) + a)
+    dt = cfl*jnp.min(1/(sx/dx + sy/dy))
     return dt
 
 def set_solver(thermo_set, boundary_set, source_set = None, nondim_set = None, solver_mode='base',is_parallel=False,parallel_set=None):
@@ -58,6 +59,7 @@ def set_solver(thermo_set, boundary_set, source_set = None, nondim_set = None, s
         
 
     
+
 
 
 
