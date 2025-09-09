@@ -68,29 +68,18 @@ def advective_flux(U,aux,metrics):
     return advective_flux_dict[solver_type](U,aux,metrics)
 
 
-def viscous_flux_node(U, aux, metrics):
+def viscous_flux_node(U, aux, dx, dy):
     ρ,u,v,Y,p,a = aux_func.U_to_prim(U,aux)
     T = aux[1:2]
     cp_k, _, h_k = thermo_model.get_thermo_properties(T[0])
     cp, _, _, _, _ = thermo_model.get_thermo(T,Y)
     Y = thermo_model.fill_Y(Y)
-    du_dξ = d_dx_dict[viscosity_discretization](u,1.0);  du_dη = d_dy_dict[viscosity_discretization](u,1.0);
-    dv_dξ = d_dx_dict[viscosity_discretization](v,1.0);  dv_dη = d_dy_dict[viscosity_discretization](v,1.0);
-    dT_dξ = d_dx_dict[viscosity_discretization](T,1.0);  dT_dη = d_dy_dict[viscosity_discretization](T,1.0);
-    dY_dξ = d_dx_dict[viscosity_discretization](Y,1.0);  dY_dη = d_dy_dict[viscosity_discretization](Y,1.0);
-    dξ_dx, dξ_dy = metrics['dξ_dx'], metrics['dξ_dy']
-    dη_dx, dη_dy = metrics['dη_dx'], metrics['dη_dy']
-    J = metrics['Jc']
-    du_dx = dξ_dx*du_dξ + dη_dx*du_dη
-    du_dy = dξ_dy*du_dξ + dη_dy*du_dη
-    dv_dx = dξ_dx*dv_dξ + dη_dx*dv_dη
-    dv_dy = dξ_dy*dv_dξ + dη_dy*dv_dη
-    dT_dx = dξ_dx*dT_dξ + dη_dx*dT_dη
-    dT_dy = dξ_dy*dT_dξ + dη_dy*dT_dη
-    dY_dx = dξ_dx*dY_dξ + dη_dx*dY_dη
-    dY_dy = dξ_dy*dY_dξ + dη_dy*dY_dη
+    du_dx = d_dx_dict[viscosity_discretization](u,dx);  du_dy = d_dy_dict[viscosity_discretization](u,dy);
+    dv_dx = d_dx_dict[viscosity_discretization](v,dx);  dv_dy = d_dy_dict[viscosity_discretization](v,dy);
+    dT_dx = d_dx_dict[viscosity_discretization](T,dx);  dT_dy = d_dy_dict[viscosity_discretization](T,dy);
+    dY_dx = d_dx_dict[viscosity_discretization](Y,dx);  dY_dy = d_dy_dict[viscosity_discretization](Y,dy);
     mu,mu_t = transport_model.mu(ρ,T,metrics,du_dx,du_dy,None,dv_dx,dv_dy,None,None,None,None)
-    k = transport_model.kappa(mu,cp, mu_t)
+    k = transport_model.kappa(mu, cp, mu_t)
     D_k = transport_model.D(mu,ρ,cp_k,mu_t)
     λ = -2/3*mu
     S11 = du_dx; S22 = dv_dy;
@@ -105,36 +94,35 @@ def viscous_flux_node(U, aux, metrics):
     jy =  - ρ * D_k * dY_dy
     ex = jnp.sum(jx*h_k,axis=0,keepdims=True)
     ey = jnp.sum(jy*h_k,axis=0,keepdims=True)
-    Fv = jnp.concatenate([jnp.zeros_like(ρ),
-                         τ_xx, τ_xy,
-                         u*τ_xx + v*τ_xy - qx - ex, -jx[0:-1]], axis=0)
-    Gv = jnp.concatenate([jnp.zeros_like(ρ),
-                         τ_xy, τ_yy,
-                         u*τ_xy + v*τ_yy - qy - ey, -jy[0:-1]], axis=0)
-    F_hat = J * (dξ_dx*Fv + dξ_dy*Gv)
-    G_hat = J * (dη_dx*Fv + dη_dy*Gv)
+    F_hat = jnp.concatenate([jnp.zeros_like(ρ),
+                             τ_xx, τ_xy,
+                             u*τ_xx + v*τ_xy - qx - ex, -jx[0:-1]], axis=0)
+    G_hat = jnp.concatenate([jnp.zeros_like(ρ),
+                             τ_xy, τ_yy,
+                             u*τ_xy + v*τ_yy - qy - ey, -jy[0:-1]], axis=0)
     return F_hat, G_hat
 
-def viscous_flux(U, aux, metrics):
-    F_hat, G_hat = viscous_flux_node(U, aux, metrics)
+def viscous_flux(U, aux, dx, dy):
+    F_hat, G_hat = viscous_flux_node(U, aux, dx, dy)
     F_interface = reconstruction_x_dict[viscosity_discretization](F_hat)
     G_interface = reconstruction_y_dict[viscosity_discretization](G_hat)
     dF = F_interface[:,1:,:]-F_interface[:,:-1,:]
     dG = G_interface[:,:,1:]-G_interface[:,:,:-1]
-    net_flux = (dF + dG)/metrics['J']
+    net_flux = dF/dx + dG/dy
     return net_flux
 
-def NS_flux(U,aux,metrics):
-    return advective_flux(U,aux,metrics) + viscous_flux(U, aux, metrics)
+def NS_flux(U,aux,dx,dy):
+    return advective_flux(U,aux,dx,dy) + viscous_flux(U, aux, dx, dy)
 
-def Euler_flux(U,aux, metrics):
-    return advective_flux(U,aux,metrics)
+def Euler_flux(U,aux,dx,dy):
+    return advective_flux(U,aux,dx,dy)
 
 total_flux_dict = {'on':NS_flux,
                    'off':Euler_flux}
 
-def total_flux(U,aux,metrics):
-    return total_flux_dict[viscosity](U,aux,metrics)
+def total_flux(U,aux,dx,dy):
+    return total_flux_dict[viscosity](U,aux,dx,dy)
+
 
 
 
