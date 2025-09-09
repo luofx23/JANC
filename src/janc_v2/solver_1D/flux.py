@@ -78,8 +78,8 @@ def viscous_flux_node(U, aux, dx):
     jx =  - ρ * D_k * dY_dx
     ex = jnp.sum(jx*h_k,axis=0,keepdims=True)
     F_hat = jnp.concatenate([jnp.zeros_like(ρ),
-                         τ_xx,
-                         u*τ_xx - qx - ex, -jx[0:-1]], axis=0)
+                             τ_xx,
+                             u*τ_xx - qx - ex, -jx[0:-1]], axis=0)
     return F_hat
 
 def viscous_flux(U, aux, dx):
@@ -100,6 +100,7 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,dx):
     return total_flux_dict[viscosity](U,aux,dx)
+
 
 
 
