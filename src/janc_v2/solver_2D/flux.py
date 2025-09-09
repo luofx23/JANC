@@ -64,8 +64,8 @@ def flux_splitting(U,aux,dx,dy):
 advective_flux_dict = {'godunov':godunov_flux,
                        'flux_splitting':flux_splitting}    
 
-def advective_flux(U,aux,metrics):
-    return advective_flux_dict[solver_type](U,aux,metrics)
+def advective_flux(U,aux,dx,dy):
+    return advective_flux_dict[solver_type](U,aux,dx,dy)
 
 
 def viscous_flux_node(U, aux, dx, dy):
@@ -122,6 +122,7 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,dx,dy):
     return total_flux_dict[viscosity](U,aux,dx,dy)
+
 
 
 
