@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 from .. import rhs,aux_func
+#from ...model import reaction_model
 
 def advance_one_step(U,aux,metrics,dt,theta):
     U1 = U + rhs.rhs(U,aux,metrics,dt,theta)
