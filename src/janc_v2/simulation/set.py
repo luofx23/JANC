@@ -1,10 +1,11 @@
-from jax import jit
+import jax
+from jax.sharding import Mesh, PartitionSpec as P
 import jax.numpy as jnp
 from ..solver_2D import rhs
 from ..solver_2D import time_step
 from ..solver_2D import aux_func
-
 from ..model import reaction_model
+from functools import partial
 
 def set_simulation(simulation_config):
     thermo_config = simulation_config['thermo_config']
@@ -37,19 +38,28 @@ def set_simulation(simulation_config):
     if is_amr:
         time_scheme += '_amr'
     if reaction_config['is_detailed_chemistry']:
-        @jit
-        def advance_one_step(U,aux,dx,dy,dt,theta=None):
-            U, aux = time_step.time_step_dict[time_scheme](U,aux,dx,dy,dt,theta)
-            dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
-            U = U + dU
-            aux = aux_func.update_aux(U, aux)
-            return U, aux
+        if is_amr:
+            def advance_one_step(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info,theta=None):
+                blk_data_adv = time_step.time_step_dict[time_scheme](level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info,theta)
+                U,aux = blk_data_adv[:,0:-2],blk_data_adv[:,-2:]
+                dU = vmap(reaction_model.reaction_source_terms,in_axes=(0, 0, None, None))(U,aux,dt,theta)
+                U = U + dU
+                aux = vmap(aux_func.update_aux,in_axes=(0,0))(U, aux)
+                return jnp.concatenate([U,aux],axis=1)
+        else:
+            def advance_one_step(U,aux,dx,dy,dt,theta=None):
+                U, aux = time_step.time_step_dict[time_scheme](U,aux,dx,dy,dt,theta)
+                dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
+                U = U + dU
+                aux = aux_func.update_aux(U, aux)
+                return U, aux
     else:
-        advance_one_step = jit(time_step.time_step_dict[time_scheme])
+        advance_one_step = time_step.time_step_dict[time_scheme]
     return advance_one_step
             
 
     
+
 
 
 
