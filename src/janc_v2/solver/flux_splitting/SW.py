@@ -1,25 +1,20 @@
 import jax.numpy as jnp
 from .. import aux_func
 
-def split_flux(ixy, U, aux, metrics):
+def split_flux(ixy, U, aux):
     rho,u,v,Y,p,a = aux_func.U_to_prim(U,aux)
     rhoE = U[3:4,:,:]
     gamma = aux[0:1]
     
-    dξ_dx = metrics['dξ_dx']
-    dη_dx = metrics['dη_dx']
-    dξ_dy = metrics['dξ_dy']
-    dη_dy = metrics['dη_dy']
-    J = metrics['Jc']
-    zx = (ixy == 1) * dξ_dx + (ixy == 2) * dη_dx
-    zy = (ixy == 1) * dξ_dy + (ixy == 2) * dη_dy
+    zx = (ixy == 1) * 1.0
+    zy = (ixy == 2) * 1.0
     theta = zx * u + zy * v
 
-    H1 = J*(1 / (2 * gamma)) * jnp.concatenate([rho, rho * u - rho * a * zx, rho * v - rho * a * zy,
+    H1 = (1 / (2 * gamma)) * jnp.concatenate([rho, rho * u - rho * a * zx, rho * v - rho * a * zy,
                           rhoE + p - rho * a * theta, rho * Y], axis=0)
-    H2 = J*((gamma - 1) / gamma) * jnp.concatenate(
+    H2 = ((gamma - 1) / gamma) * jnp.concatenate(
         [rho, rho * u, rho * v, 0.5 * rho * (u ** 2 + v ** 2), rho * Y], axis=0)
-    H4 = J*(1 / (2 * gamma)) * jnp.concatenate([rho, rho * u + rho * a * zx, rho * v + rho * a * zy,
+    H4 = (1 / (2 * gamma)) * jnp.concatenate([rho, rho * u + rho * a * zx, rho * v + rho * a * zy,
                           rhoE + p + rho * a * theta, rho * Y], axis=0)
 
     lambda1 = theta - a
