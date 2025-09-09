@@ -16,7 +16,7 @@ viscosity = 'off'
 viscosity_discretization = 'CENTRAL6'
 
 
-def set_flux_solver(flux_solver_config,transport_config=None):
+def set_flux_solver(flux_solver_config,transport_config=None,nondim_config=None):
     global solver_type,interface_reconstruction,riemann_solver,split_method,viscosity,viscosity_discretization
     solver_type = flux_solver_config['solver_type']
     if solver_type == 'godunov':
@@ -30,7 +30,7 @@ def set_flux_solver(flux_solver_config,transport_config=None):
     
     if flux_solver_config['viscosity'] == 'on':
         viscosity = 'on'
-        transport_model.set_transport(transport_config,'2D')
+        transport_model.set_transport(transport_config,nondim_config,'2D')
         if 'viscosity_discretization' in flux_solver_config:
             viscosity_discretization = flux_solver_config['viscosity_discretization']
         
@@ -122,6 +122,7 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,dx,dy):
     return total_flux_dict[viscosity](U,aux,dx,dy)
+
 
 
 
