@@ -1,8 +1,10 @@
+from jax import vmap
 import jax.numpy as jnp
 from . import flux, aux_func
 from ..model import thermo_model,reaction_model,transport_model
 from ..boundary import boundary
 from ..parallel import boundary as parallel_boundary
+from functools import partial
 
 point_implicit = 'off'
 parallel = 'off'
@@ -33,12 +35,22 @@ def rhs_flux(U, aux, dx, dy, dt, theta):
     rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,dx,dy))
     return rhs
 
+@partial(vmap,in_axes=(0,0,None,None,None,None))
+def rhs_flux_amr(U,aux,dx,dy,dt,theta):
+    physical_rhs = dt*(flux.total_flux(U,aux,dx,dy))
+    return jnp.pad(physical_rhs,pad_width=((0,0),(3,3),(3,3)))
+
 rhs_source_dict = {'off':rhs_source_explicit,
                    'on':rhs_source_implicit}
 
 def rhs_source(U, aux, dt, theta):
     return rhs_source_dict[point_implicit](U, aux, dt, theta)
+
+@partial(vmap,in_axes=(0,0,None,None))
+def rhs_source_amr(U, aux, dt, theta):
+    return rhs_source_dict[point_implicit](U[:,3:-3,3:-3], aux[:,3:-3,3:-3], dt, theta)
     
+
 
 
 
