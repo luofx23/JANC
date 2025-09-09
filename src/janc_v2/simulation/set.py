@@ -23,8 +23,19 @@ def set_simulation(simulation_config):
         nondim_config = simulation_config['nondim_config']
     else:
         nondim_config = None
-    rhs.set_rhs(thermo_config, reaction_config, flux_config, transport_config, boundary_config, source_config, nondim_config)
+    if 'computation_config' in simulation_config:
+        computation_config = simulation_config['computation_config']
+        is_parallel = computation_config['is_parallel']
+        is_amr = computation_config['is_amr']
+        if is_parallel and is_amr:
+            raise RuntimeError('The parallel version of AMR is currently unavaliable.')
+    else:
+        is_parallel = False
+        is_amr = False
+    rhs.set_rhs(thermo_config, reaction_config, flux_config, transport_config, boundary_config, source_config, nondim_config,is_parallel=is_parallel)
     time_scheme = simulation_config['temporal_evolution_scheme'] + '_' + flux_config['solver_type']
+    if is_amr:
+        time_scheme += '_amr'
     if reaction_config['is_detailed_chemistry']:
         @jit
         def advance_one_step(U,aux,dx,dy,dt,theta=None):
@@ -39,6 +50,7 @@ def set_simulation(simulation_config):
             
 
     
+
 
 
 
