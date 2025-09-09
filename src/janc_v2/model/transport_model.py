@@ -25,7 +25,7 @@ D_type = 'Lewis number'
 model = 'laminar'
 LES_model = 'WALE'
 
-def set_transport(transport_config,dim):
+def set_transport(transport_config,dim='2D'):
     global Pr_t,Sc_t, Le_t,LES_model,model,nu_type, k_type, D_type, Pr, Sc, Le, nu0, k0, D0,mu_ref,T_ref,S
     if transport_config['viscosity_model'] == 'constant':
         nu_type = 'constant'
@@ -147,4 +147,5 @@ def D(mu,rho,cp_i,mu_t):
     
     
     
+
 
