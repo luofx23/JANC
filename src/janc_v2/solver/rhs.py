@@ -27,8 +27,8 @@ def rhs_source_explicit(U, aux, dt, theta):
 def rhs_source_implicit(U, aux, dt, theta):
     return aux_func.user_source(U,aux,theta)*dt
 
-boundary_conditions_dict = {'on':parallel_boundary.boundary_conditions,
-                            'off':boundary.boundary_conditions}
+boundary_conditions_dict = {'on':parallel_boundary.boundary_conditions_2D,
+                            'off':boundary.boundary_conditions_2D}
 
 def rhs_flux(U, aux, dx, dy, dt, theta):
     U_with_ghost,aux_with_ghost = boundary_conditions_dict[parallel](U,aux,theta)
@@ -50,6 +50,7 @@ def rhs_source(U, aux, dt, theta):
 def rhs_source_amr(U, aux, dt, theta):
     return rhs_source_dict[point_implicit](U[:,3:-3,3:-3], aux[:,3:-3,3:-3], dt, theta)
     
+
 
 
 
