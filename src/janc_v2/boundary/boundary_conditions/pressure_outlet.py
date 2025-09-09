@@ -21,51 +21,48 @@ def pressure_outlet(state_out,gamma_out,T_out,normal_vel,Pb):
     aux_bd = jnp.concatenate([gamma_out,T_cor_out], axis=0)
     return U_bd, aux_bd
 
-def left(U_bd, aux_bd, metrics, theta):
+def left(U_bd, aux_bd, theta):
     Pb = theta['Pb']
-    wall_nx,wall_ny = metrics['left_n_x'],metrics['left_n_y']
     state_out = U_bd[:,0:1,:]
     gamma_out = aux_bd[0:1,0:1,:]
     T_out = aux_bd[1:2,0:1,:]
-    normal_vel = -(state_out[1:2,:,:]/state_out[0:1,:,:]*wall_nx + state_out[2:3,:,:]/state_out[0:1,:,:]*wall_ny)
+    normal_vel = -(state_out[1:2,:,:]/state_out[0:1,:,:])
     U_bd,aux_bd = pressure_outlet(state_out, gamma_out, T_out, normal_vel, Pb)  
     U_bd_ghost = jnp.concatenate([U_bd[:,0:1,:],U_bd[:,0:1,:],U_bd[:,0:1,:]],axis=1)
     aux_bd_ghost = jnp.concatenate([aux_bd[:,0:1,:],aux_bd[:,0:1,:],aux_bd[:,0:1,:]],axis=1)
     return U_bd_ghost, aux_bd_ghost
 
-def right(U_bd, aux_bd, metrics, theta):
+def right(U_bd, aux_bd, theta):
     Pb = theta['Pb']
-    wall_nx,wall_ny = metrics['right_n_x'],metrics['right_n_y']
     state_out = U_bd[:,-1:,:]
     gamma_out = aux_bd[0:1,-1:,:]
     T_out = aux_bd[1:2,-1:,:]
-    normal_vel = -(state_out[1:2,:,:]/state_out[0:1,:,:]*wall_nx + state_out[2:3,:,:]/state_out[0:1,:,:]*wall_ny)
+    normal_vel = state_out[1:2,:,:]/state_out[0:1,:,:]
     U_bd,aux_bd = pressure_outlet(state_out, gamma_out, T_out, normal_vel, Pb)  
     U_bd_ghost = jnp.concatenate([U_bd[:,0:1,:],U_bd[:,0:1,:],U_bd[:,0:1,:]],axis=1)
     aux_bd_ghost = jnp.concatenate([aux_bd[:,0:1,:],aux_bd[:,0:1,:],aux_bd[:,0:1,:]],axis=1)
     return U_bd_ghost, aux_bd_ghost
 
-def bottom(U_bd, aux_bd, metrics, theta):
+def bottom(U_bd, aux_bd, theta):
     Pb = theta['Pb']
-    wall_nx,wall_ny = metrics['bottom_n_x'],metrics['bottom_n_y']
     state_out = U_bd[:,:,0:1]
     gamma_out = aux_bd[0:1,:,0:1]
     T_out = aux_bd[1:2,:,0:1]
-    normal_vel = -(state_out[1:2,:,:]/state_out[0:1,:,:]*wall_nx + state_out[2:3,:,:]/state_out[0:1,:,:]*wall_ny)
+    normal_vel = -(state_out[2:3,:,:]/state_out[0:1,:,:])
     U_bd,aux_bd = pressure_outlet(state_out, gamma_out, T_out, normal_vel,Pb)  
     U_bd_ghost = jnp.concatenate([U_bd[:,:,0:1],U_bd[:,:,0:1],U_bd[:,:,0:1]],axis=2)
     aux_bd_ghost = jnp.concatenate([aux_bd[:,:,0:1],aux_bd[:,:,0:1],aux_bd[:,:,0:1]],axis=2)
     return U_bd_ghost, aux_bd_ghost
 
-def top(U_bd, aux_bd, metrics, theta):
+def top(U_bd, aux_bd, theta):
     Pb = theta['Pb']
-    wall_nx,wall_ny = metrics['top_n_x'],metrics['top_n_y']
     state_out = U_bd[:,:,-1:]
     gamma_out = aux_bd[0:1,:,-1:]
     T_out = aux_bd[1:2,:,-1:]
-    normal_vel = -(state_out[1:2,:,:]/state_out[0:1,:,:]*wall_nx + state_out[2:3,:,:]/state_out[0:1,:,:]*wall_ny)
+    normal_vel = state_out[2:3,:,:]/state_out[0:1,:,:]
     U_bd,aux_bd = pressure_outlet(state_out, gamma_out, T_out, normal_vel,Pb)  
     U_bd_ghost = jnp.concatenate([U_bd[:,:,0:1],U_bd[:,:,0:1],U_bd[:,:,0:1]],axis=2)
     aux_bd_ghost = jnp.concatenate([aux_bd[:,:,0:1],aux_bd[:,:,0:1],aux_bd[:,:,0:1]],axis=2)
     return U_bd_ghost, aux_bd_ghost
+
 
