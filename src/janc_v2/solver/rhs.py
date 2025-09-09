@@ -1,8 +1,8 @@
 import jax.numpy as jnp
 from . import flux, aux_func
-from ..grid import read_grid
 from ..model import thermo_model,reaction_model,transport_model
 from ..boundary import boundary
+from ..parallel import boundary as parallel_boundary
 
 point_implicit = 'off'
 def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_config,source_config=None):
@@ -16,22 +16,24 @@ def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_
     if reaction_config['is_detailed_chemistry']:
         point_implicit = 'on'
 
-def rhs_explicit(U, aux, metrics, dt, theta):
+def rhs_source_explicit(U, aux, metrics, dt, theta):
+    return aux_func.user_source(U,aux,theta)*dt + reaction_model.reaction_source_terms(U,aux,dt,theta)
+
+def rhs_source_implicit(U, aux, metrics, dt, theta):
+    return aux_func.user_source(U,aux,theta)*dt
+
+def rhs_flux(U, aux, metrics, dt, theta):
     U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,metrics,theta)
-    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics) + aux_func.user_source(U,aux,theta)) + reaction_model.reaction_source_terms(U,aux,dt,theta)
+    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics))
     return rhs
 
-def rhs_implicit(U, aux, metrics, dt, theta):
-    U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,metrics,theta)
-    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics) + aux_func.user_source(U, aux, theta))
-    return rhs
+rhs_source_dict = {'off':rhs_source_explicit,
+                   'on':rhs_source_implicit}
 
-rhs_dict = {'off':rhs_explicit,
-            'on':rhs_implicit}
-
-def rhs(U, aux, metrics,dt, theta):
-    return rhs_dict[point_implicit](U,aux,metrics,dt,theta)
+def rhs_source(U, aux, metrics, dt, theta):
+    return rhs_source_dict[point_implicit](U, aux, metrics, dt, theta)
     
+
 
 
 
