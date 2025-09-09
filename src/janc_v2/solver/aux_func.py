@@ -28,7 +28,6 @@ def update_aux(U,aux):
     aux_new = thermo.get_T(e,Y,initial_T)
     return aux.at[0:2].set(aux_new)
 
-
 def source_terms(U,aux,theta=None):
     return user_source(U,aux,theta)
 
@@ -51,20 +50,6 @@ def U_to_prim(U,aux):
     a = jnp.sqrt(gamma*p/rho)
     return rho,u,v,Y,p,a
 
-def decomp_prim(q,metrics):
-    ξ_n_x,ξ_n_y = metrics['ξ_n_x'],metrics['ξ_n_y']
-    η_n_x,η_n_y = metrics['η_n_x'],metrics['η_n_y']
-    rho,u,v,p,Y = q[0:1],q[1:2],q[2:3],q[3:4],q[4:]
-    R = thermo.get_R(Y)
-    T = p/(rho*R)
-    _, gamma, h, _, _ = thermo.get_thermo(T,Y)
-    a = jnp.sqrt(gamma*R*T)
-    rhoE = rho*h-p + 0.5*rho(u**2+v**2)
-    un,ut = (u*ξ_n_x + v*ξ_n_y), (-u*ξ_n_y + v*ξ_n_x)
-    vt,vn = (u*η_n_y - v*η_n_x), (u*η_n_x + v*η_n_y)
-    return rho,un,ut,vt,vn,rhoE,a,Y
-    
-
 def prim_to_U(q):
     rho,u,v,p,Y = q[0:1],q[1:2],q[2:3],q[3:4],q[4:]
     R = thermo.get_R(Y)
@@ -75,6 +60,7 @@ def prim_to_U(q):
     aux = jnp.concatenate([gamma,T],axis=0)
     return U,aux
     
+
 
 
 
