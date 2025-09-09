@@ -20,7 +20,7 @@ def pressure_outlet(state_out,gamma_out,T_out,normal_vel,Pb):
     aux_bd = jnp.concatenate([gamma_out,T_cor_out], axis=0)
     return U_bd, aux_bd
 
-def left(U_bd, aux_bd, metrics, theta):
+def left(U_bd, aux_bd, theta):
     Pb = theta['Pb']
     state_out = U_bd[:,0:1]
     gamma_out = aux_bd[0:1,0:1]
@@ -31,7 +31,7 @@ def left(U_bd, aux_bd, metrics, theta):
     aux_bd_ghost = jnp.concatenate([aux_bd[:,0:1],aux_bd[:,0:1],aux_bd[:,0:1]],axis=1)
     return U_bd_ghost, aux_bd_ghost
 
-def right(U_bd, aux_bd, metrics, theta):
+def right(U_bd, aux_bd, theta):
     Pb = theta['Pb']
     state_out = U_bd[:,-1:]
     gamma_out = aux_bd[0:1,-1:]
@@ -41,4 +41,5 @@ def right(U_bd, aux_bd, metrics, theta):
     U_bd_ghost = jnp.concatenate([U_bd[:,0:1],U_bd[:,0:1],U_bd[:,0:1]],axis=1)
     aux_bd_ghost = jnp.concatenate([aux_bd[:,0:1],aux_bd[:,0:1],aux_bd[:,0:1]],axis=1)
     return U_bd_ghost, aux_bd_ghost
+
 
