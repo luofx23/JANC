@@ -116,7 +116,13 @@ def set_boundary(boundary_config:dict,dim:str):
                 U_with_ub,aux_with_ub = replace_ub_2D(U_ub,aux_ub,padded_U,padded_aux)
                 return U_with_ub,aux_with_ub
         boundary_func['top_boundary'] = top_boundary
-        
+
+def boundary_conditions_1D(U, aux, theta=None):
+    U_periodic_pad,aux_periodic_pad = pad_1D(U,aux)
+    U_with_lb,aux_with_lb = boundary_func['left_boundary'](U_periodic_pad,aux_periodic_pad, theta)
+    U_with_ghost_cell,aux_with_ghost_cell = boundary_func['right_boundary'](U_with_lb,aux_with_lb,theta)
+    return U_with_ghost_cell,aux_with_ghost_cell
+
 def boundary_conditions_2D(U, aux, theta=None):
     U_periodic_pad,aux_periodic_pad = pad_2D(U,aux)
     U_with_lb,aux_with_lb = boundary_func['left_boundary'](U_periodic_pad,aux_periodic_pad, theta)
@@ -124,6 +130,7 @@ def boundary_conditions_2D(U, aux, theta=None):
     U_with_bb,aux_with_bb = boundary_func['bottom_boundary'](U_with_rb,aux_with_rb,theta)
     U_with_ghost_cell,aux_with_ghost_cell = boundary_func['top_boundary'](U_with_bb,aux_with_bb,theta)
     return U_with_ghost_cell,aux_with_ghost_cell
+
 
 
 
