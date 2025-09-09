@@ -24,37 +24,5 @@ def mu_t_2D(rho,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
     return mu_t
 
 
-
-
-def mu_t_3D(rho,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
-    d1,d2,d3 = metrics['dx'],metrics['dy'],metrics['dz']
-    a11,a12,a13 = dudx,dvdx,dwdx
-    a21,a22,a23 = dudy,dvdy,dwdy
-    a31,a32,a33 = dudz,dvdz,dwdz
-    b11_x,b12_x,b13_x = (d1**2)*a11*a11,(d1**2)*a11*a12,(d1**2)*a11*a13
-    b21_x,b22_x,b23_x = (d1**2)*a12*a11,(d1**2)*a12*a12,(d1**2)*a12*a13
-    b31_x,b32_x,b33_x = (d1**2)*a13*a11,(d1**2)*a13*a12,(d1**2)*a13*a13
-    
-    b11_y,b12_y,b13_y = (d2**2)*a21*a21,(d2**2)*a21*a22,(d2**2)*a21*a23
-    b21_y,b22_y,b23_y = (d2**2)*a22*a21,(d2**2)*a22*a22,(d2**2)*a22*a23
-    b31_y,b32_y,b33_y = (d2**2)*a23*a21,(d2**2)*a23*a22,(d2**2)*a23*a23
-    
-    b11_z,b12_z,b13_z = (d3**2)*a31*a31,(d3**2)*a31*a32,(d3**2)*a31*a33
-    b21_z,b22_z,b23_z = (d3**2)*a32*a31,(d3**2)*a32*a32,(d3**2)*a32*a33
-    b31_z,b32_z,b33_z = (d3**2)*a33*a31,(d3**2)*a33*a32,(d3**2)*a33*a33
-    
-    b11,b12,b13 = b11_x+b11_y+b11_z,b12_x+b12_y+b12_z,b13_x+b13_y+b13_z
-    b21,b22,b23 = b21_x+b21_y+b21_z,b22_x+b22_y+b22_z,b23_x+b23_y+b23_z
-    b31,b32,b33 = b31_x+b31_y+b31_z,b32_x+b32_y+b32_z,b33_x+b33_y+b33_z
-    B_b = jnp.abs(b11*b22-b12**2+b11*b33-b13**2+b22*b33-b23**2)
-    mask = (B_b>=0.0)
-    B_b = jnp.where(mask,B_b,jnp.zeros_like(B_b))
-    a_sum = a11**2+a12**2+a13**2+a21**2+a22**2+a23**2+a31**2+a32**2+a33**2
-    mask = a_sum>0.0
-    ratio = jnp.where(mask,B_b/a_sum,jnp.zeros_like(a_sum))
-    mu_t = rho*c*jnp.sqrt(ratio)
-    return mu_t
-
-
     
     
