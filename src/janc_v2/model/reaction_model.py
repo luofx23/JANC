@@ -33,7 +33,7 @@ self_defined_source = None
 source_func_type = 'detailed'
 dimensions = '2D'
 
-def set_reaction(reaction_config,dim,nondim_config=None):
+def set_reaction(reaction_config,nondim_config=None,dim='2D'):
     global dimensions,source_func_type,self_defined_source,ReactionParams,nr,species_M,Mex,Tcr,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
     dimensions = dim
     if reaction_config['is_detailed_chemistry']:
@@ -42,12 +42,15 @@ def set_reaction(reaction_config,dim,nondim_config=None):
         assert ext.lower() == '.yaml', "janc only read mech file with 【.yaml】 format, check https://cantera.org/3.1/userguide/ck2yaml-tutorial.html for more details"
         if not os.path.isfile(reaction_config['mechanism_directory']):
             raise FileNotFoundError('No mechanism file detected in the specified directory.')
-
     else:
-        assert 'self_defined_reaction_source_terms' in reaction_config,"Please pass the function handle of your own reaction source."
-        assert callable(reaction_config['self_defined_reaction_source_terms']),'This source_term is not a python callable function.'
-        self_defined_source = reaction_config['self_defined_reaction_source_terms']
-        source_func_type = 'user_defined'
+        if 'self_defined_reaction_source_terms' not in reaction_config:
+            def self_defined_source(U,aux,theta=None):
+                return jnp.zeros_like(U)
+        else:
+            assert 'self_defined_reaction_source_terms' in reaction_config,"Please pass the function handle of your own reaction source."
+            assert callable(reaction_config['self_defined_reaction_source_terms']),'This source_term is not a python callable function.'
+            self_defined_source = reaction_config['self_defined_reaction_source_terms']
+            source_func_type = 'user_defined'
         
     if reaction_config['is_detailed_chemistry']:
         ReactionParams = read_reaction_mechanism(reaction_config['mechanism_directory'],nondim_config)
@@ -182,7 +185,7 @@ def detailed_reaction(U,aux,dt,theta=None):
     return S
 
 def user_reaction(U,aux,dt,theta=None):
-    user_source = self_defined_source(U,aux,dt,theta)
+    user_source = self_defined_source(U,aux,theta)
     return user_source*dt
 
 reaction_func_dict = {'detailed':detailed_reaction,
@@ -190,6 +193,7 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
