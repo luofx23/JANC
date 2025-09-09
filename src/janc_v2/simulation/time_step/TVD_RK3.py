@@ -1,6 +1,5 @@
 from jax import vmap
 import jax.numpy as jnp
-from .. import rhs,aux_func
 from jaxamr import amr
 
 def advance_one_step(U,aux,dx,dy,dt,theta,rhs_func,update_func):
