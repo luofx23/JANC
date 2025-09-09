@@ -5,13 +5,13 @@ from ..boundary import boundary
 from ..parallel import boundary as parallel_boundary
 
 point_implicit = 'off'
-def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_config,source_config=None):
+def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_config,source_config=None,nondim_config=None):
     global point_implicit
     dim = '2D'
-    thermo_model.set_thermo(thermo_config)
-    reaction_model.set_reaction(reaction_config,dim)
-    flux.set_flux_solver(flux_config,transport_config)
-    boundary.set_boundary(boundary_config,dim)
+    thermo_model.set_thermo(thermo_config,nondim_config)
+    reaction_model.set_reaction(reaction_config,nondim_config,dim)
+    flux.set_flux_solver(flux_config,transport_config,nondim_config)
+    boundary.set_boundary(boundary_config)
     aux_func.set_source_terms(source_config)
     if reaction_config['is_detailed_chemistry']:
         point_implicit = 'on'
@@ -33,6 +33,7 @@ rhs_source_dict = {'off':rhs_source_explicit,
 def rhs_source(U, aux, metrics, dt, theta):
     return rhs_source_dict[point_implicit](U, aux, metrics, dt, theta)
     
+
 
 
 
