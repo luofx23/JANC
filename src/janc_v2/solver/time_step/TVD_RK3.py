@@ -53,7 +53,7 @@ def advance_one_step_flux_splitting_amr(level, blk_data, dx, dy, dt, ref_blk_dat
     blk_data3 = amr.update_external_boundary(level, blk_data, blk_data3[..., 3:-3, 3:-3], ref_blk_info)
     return blk_data3
 
-def advance_one_step_flux_splitting_amr(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
+def advance_one_step_godunov_amr(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
     ghost_blk_data = amr.get_ghost_block_data(ref_blk_data, ref_blk_info)
     U,aux = ghost_blk_data[:,0:-2],ghost_blk_data[:,-2:]
     U1 = U + rhs.rhs_flux_amr(U, aux, dx, dy, dt, theta)
