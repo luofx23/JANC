@@ -1,5 +1,3 @@
-import jax
-from jax.sharding import Mesh, PartitionSpec as P
 import jax.numpy as jnp
 from ..solver_2D import rhs
 from ..solver_2D import time_step
@@ -59,6 +57,7 @@ def set_simulation(simulation_config):
             
 
     
+
 
 
 
