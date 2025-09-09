@@ -5,8 +5,9 @@ from ..boundary import boundary
 from ..parallel import boundary as parallel_boundary
 
 point_implicit = 'off'
-def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_config,source_config=None,nondim_config=None):
-    global point_implicit
+parallel = 'off'
+def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_config,source_config=None,nondim_config=None,is_parallel=False):
+    global point_implicit,parallel
     dim = '2D'
     thermo_model.set_thermo(thermo_config,nondim_config)
     reaction_model.set_reaction(reaction_config,nondim_config,dim)
@@ -15,24 +16,30 @@ def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_
     aux_func.set_source_terms(source_config)
     if reaction_config['is_detailed_chemistry']:
         point_implicit = 'on'
+    if is_parallel:
+        parallel = 'on'
 
-def rhs_source_explicit(U, aux, metrics, dt, theta):
+def rhs_source_explicit(U, aux, dt, theta):
     return aux_func.user_source(U,aux,theta)*dt + reaction_model.reaction_source_terms(U,aux,dt,theta)
 
-def rhs_source_implicit(U, aux, metrics, dt, theta):
+def rhs_source_implicit(U, aux, dt, theta):
     return aux_func.user_source(U,aux,theta)*dt
 
-def rhs_flux(U, aux, metrics, dt, theta):
-    U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,metrics,theta)
-    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics))
+boundary_conditions_dict = {'on':parallel_boundary.boundary_conditions,
+                            'off':boundary.boundary_conditions}
+
+def rhs_flux(U, aux, dx, dy, dt, theta):
+    U_with_ghost,aux_with_ghost = boundary_conditions_dict[parallel](U,aux,theta)
+    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,dx,dy))
     return rhs
 
 rhs_source_dict = {'off':rhs_source_explicit,
                    'on':rhs_source_implicit}
 
-def rhs_source(U, aux, metrics, dt, theta):
-    return rhs_source_dict[point_implicit](U, aux, metrics, dt, theta)
+def rhs_source(U, aux, dt, theta):
+    return rhs_source_dict[point_implicit](U, aux, dt, theta)
     
+
 
 
 
