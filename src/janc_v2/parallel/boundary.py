@@ -7,9 +7,6 @@ from ..boundary import boundary
 devices = jax.devices()
 num_devices = len(devices)
 
-boundary.boundary_func = boundary.boundary.boundary_func
-
-
 def boundary_conditions_2D(U,aux,theta=None):
     device_idx = jax.lax.axis_index('x')
     U_periodic_pad,aux_periodic_pad = pad_2D(U,aux)
@@ -18,5 +15,3 @@ def boundary_conditions_2D(U,aux,theta=None):
     U_with_bb,aux_with_bb = boundary.boundary_func['bottom_boundary'](U_with_rb,aux_with_rb,theta)
     U_with_ghost_cell,aux_with_ghost_cell = boundary.boundary_func['top_boundary'](U_with_bb,aux_with_bb,theta)
     return U_with_ghost_cell,aux_with_ghost_cell
-
-
