@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 from . import flux, aux_func
-from ..grid import read_grid
 from ..model import thermo_model,reaction_model,transport_model
 from ..boundary import boundary
 
@@ -32,6 +31,7 @@ rhs_dict = {'off':rhs_explicit,
 def rhs(U, aux, dx, dy, dt, theta):
     return rhs_dict[point_implicit](U,aux,dx,dy,dt,theta)
     
+
 
 
 
