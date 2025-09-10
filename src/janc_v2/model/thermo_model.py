@@ -39,7 +39,7 @@ thermo_model = 'nasa7'
 gas_constant = 'Y-dependent'
 
 
-def set_thermo(thermo_config,nondim_config=None):
+def set_thermo(thermo_config,nondim_config=None,dim='2D'):
     global gamma_constant,gas_constant,R_constant,ReactionParams,thermo_model,n,species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
     thermo_model = 'nasa7'
     gas_constant = 'Y-dependent'
@@ -74,7 +74,7 @@ def set_thermo(thermo_config,nondim_config=None):
         mech = 'gri30.yaml'#thermo_config['mechanism_directory']
 
     
-    species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config)
+    species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config,dim)
 
 
 def fill_Y(Y):
@@ -222,6 +222,7 @@ def get_T(e,Y,initial_T):
     
     
     
+
 
 
 
