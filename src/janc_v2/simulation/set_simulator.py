@@ -55,6 +55,7 @@ def set_rhs(dim,reaction_config,source_config=None,is_parallel=False,is_amr=Fals
         else:
             if ('self_defined_reaction_source_terms' not in reaction_config) or (reaction_config['self_defined_reaction_source_terms'] is None):
                 source_func = None
+                print('this is it')
             else:
                 source_func = reaction_model.reaction_source_terms
 
@@ -200,6 +201,7 @@ class Simulator:
         return self.advance_func
 
     
+
 
 
 
