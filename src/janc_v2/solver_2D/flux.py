@@ -18,6 +18,12 @@ viscosity_discretization = 'CENTRAL6'
 
 def set_flux_solver(flux_solver_config,transport_config=None,nondim_config=None):
     global solver_type,interface_reconstruction,riemann_solver,split_method,viscosity,viscosity_discretization
+    solver_type = 'godunov'
+    interface_reconstruction = 'WENO5-JS'
+    riemann_solver = 'HLLC'
+    split_method = 'LF'
+    viscosity = 'off'
+    viscosity_discretization = 'CENTRAL6'
     solver_type = flux_solver_config['solver_type']
     if solver_type == 'godunov':
         interface_reconstruction = flux_solver_config['interface_reconstruction']
@@ -122,6 +128,7 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,dx,dy):
     return total_flux_dict[viscosity](U,aux,dx,dy)
+
 
 
 
