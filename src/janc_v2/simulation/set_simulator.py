@@ -194,7 +194,11 @@ class Simulator:
               U, aux = advance_func(U,aux,dx,dy,dt,theta)
         return U, aux
 
+    def get_step_func(self):
+        return self.advance_func
+
     
+
 
 
 
