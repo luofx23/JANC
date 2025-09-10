@@ -32,8 +32,8 @@ def set_simulation(simulation_config):
     time_scheme = simulation_config['temporal_evolution_scheme']
     if reaction_config['is_detailed_chemistry']:
         @jit
-        def advance_one_step(U,aux,metrics,dt,theta=None):
-            U, aux = time_step.time_step_dict[time_scheme](U,aux,metrics,dt,theta)
+        def advance_one_step(U,aux,dx,dy,dt,theta=None):
+            U, aux = time_step.time_step_dict[time_scheme](U,aux,dx,dy,dt,theta)
             dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
             U = U + dU
             aux = aux_func.update_aux(U, aux)
@@ -41,8 +41,8 @@ def set_simulation(simulation_config):
     else:
         #advance_one_step = jit(time_step.time_step_dict[time_scheme])
         @jit
-        def advance_one_step(U,aux,metrics,dt,theta=None):
-            U, aux = time_step.time_step_dict[time_scheme](U,aux,metrics,dt,theta)
+        def advance_one_step(U,aux,dx,dy,dt,theta=None):
+            U, aux = time_step.time_step_dict[time_scheme](U,aux,dx,dy,dt,theta)
             U1 = U + reaction_model.reaction_source_terms(U,aux,dt,theta)
             aux1 = aux_func.update_aux(U1, aux)
             U2 = U + 1/2*(reaction_model.reaction_source_terms(U,aux,dt,theta)+reaction_model.reaction_source_terms(U1,aux1,dt,theta))
@@ -52,6 +52,7 @@ def set_simulation(simulation_config):
             
 
     
+
 
 
 
