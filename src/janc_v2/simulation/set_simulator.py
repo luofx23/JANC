@@ -55,7 +55,6 @@ def set_rhs(dim,reaction_config,source_config=None,is_parallel=False,is_amr=Fals
         else:
             if ('self_defined_reaction_source_terms' not in reaction_config) or (reaction_config['self_defined_reaction_source_terms'] is None):
                 source_func = None
-                print('this is it')
             else:
                 source_func = reaction_model.reaction_source_terms
 
@@ -80,6 +79,7 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
                 def advance_flux(U,aux,dx,dt,theta=None):
                     return time_step_dict[time_scheme](U,aux,dx,dt,theta,flux_func,update_func)
             if dim == '2D':
+                print('this is it')
                 def advance_flux(U,aux,dx,dy,dt,theta=None):
                     return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
     else:
@@ -201,6 +201,7 @@ class Simulator:
         return self.advance_func
 
     
+
 
 
 
