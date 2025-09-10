@@ -36,6 +36,8 @@ dimensions = '2D'
 def set_reaction(reaction_config,nondim_config=None,dim='2D'):
     global dimensions,source_func_type,self_defined_source,ReactionParams,nr,species_M,Mex,Tcr,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
     dimensions = dim
+    source_func_type = 'detailed'
+    dimensions = '2D'
     if reaction_config['is_detailed_chemistry']:
         assert 'mechanism_directory' in reaction_config,"You choosed detailed chemistry without specifying the directory of your mechanism files, please specify 'chemistry_mechanism_directory' in your dict of settings"
         _, ext = os.path.splitext(reaction_config['mechanism_directory'])
@@ -193,6 +195,7 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
