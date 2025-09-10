@@ -1,4 +1,4 @@
-from jax import vmap,jit,shard_map
+from jax import vmap,jit
 import jax.numpy as jnp
 from .time_step import time_step_dict
 from ..solver_1D import flux as flux_1D
@@ -189,6 +189,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
