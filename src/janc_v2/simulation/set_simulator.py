@@ -64,6 +64,12 @@ def set_rhs(dim,thermo_config,reaction_config,flux_config,transport_config,bound
         def source_func(U, aux, dt, theta):
             return temp_source_func(U[:,3:-3,3:-3],aux[:,3:-3,3:-3],dt,theta)
     return flux_func, update_func, source_func
+
+def set_advance_func(flux_config,reaction_config,flux_func,update_func,source_func):
+    is_detailed_chemistry = reaction_config['is_detailed_chemistry']
+    solver_type = flux_config['solver_type']
+    if source_func is None:
+        
         
             
     
@@ -121,6 +127,7 @@ def set_simulation(simulation_config):
             
 
     
+
 
 
 
