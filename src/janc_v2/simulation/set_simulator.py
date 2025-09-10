@@ -141,15 +141,7 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
                     aux = update_func(U, aux)
                     return U, aux
     else:
-        #advance_one_step = advance_flux
-        def advance_one_step(U,aux,dx,dy,dt,theta=None):
-            U1 = U + flux_func(U,aux,dx,dy,dt,theta)
-            aux1 = update_func(U1, aux)
-            U2 = 3/4*U + 1/4 * (U1 + flux_func(U1,aux1,dx,dy,dt,theta))
-            aux2 = update_func(U2, aux1)
-            U3 = 1/3*U + 2/3 * (U2 + flux_func(U2,aux2,dx,dy,dt,theta))
-            aux3 = update_func(U3, aux2)
-            return U3,aux3
+        advance_one_step = advance_flux
     return advance_one_step
 
 class Simulator:
@@ -202,59 +194,8 @@ class Simulator:
               U, aux = advance_func(U,aux,dx,dy,dt,theta)
         return U, aux
 
-    def get_step_func(self):
-        return self.advance_func
-
-def noclass(simulation_config):
-    dim = simulation_config['dimension']
-    thermo_config = simulation_config['thermo_config']
-    reaction_config = simulation_config['reaction_config']
-    if 'transport_config' in simulation_config:
-        transport_config = simulation_config['transport_config']
-    else:
-        transport_config = None
-    flux_config = simulation_config['flux_config']
-    boundary_config = simulation_config['boundary_config']
-    if 'source_config' in simulation_config:
-        source_config = simulation_config['source_config']
-    else:
-        source_config = None
-    if 'nondim_config' in simulation_config:
-        nondim_config = simulation_config['nondim_config']
-    else:
-        nondim_config = None
-    time_control = simulation_config['time_control']
-    if 'computation_config' in simulation_config:
-        computation_config = simulation_config['computation_config']
-        is_parallel = computation_config['is_parallel']
-        is_amr = computation_config['is_amr']
-        if is_parallel and is_amr:
-            raise RuntimeError('The parallel version of AMR is currently unavaliable.')
-    else:
-        is_parallel = False
-        is_amr = False
-    thermo_model.set_thermo(thermo_config,nondim_config)
-    reaction_model.set_reaction(reaction_config,nondim_config,dim)
-    flux.set_flux_solver(flux_config,transport_config,nondim_config)
-    boundary.set_boundary(boundary_config,dim)
-    def flux_func(U, aux, dx, dy, dt, theta):
-        U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,theta)
-        rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,dx,dy))
-        return rhs
-        
-    @jit
-    def advance_func(U,aux,dx,dy,dt,theta=None):
-        U1 = U + flux_func(U,aux,dx,dy,dt,theta)
-        aux1 = aux_func.update_aux(U1, aux)
-        U2 = 3/4*U + 1/4 * (U1 + flux_func(U1,aux1,dx,dy,dt,theta))
-        aux2 = aux_func.update_aux(U2, aux1)
-        U3 = 1/3*U + 2/3 * (U2 + flux_func(U2,aux2,dx,dy,dt,theta))
-        aux3 = aux_func.update_aux(U3, aux2)
-        return U3,aux3
     
-    return advance_func
 
-    
 
 
 
