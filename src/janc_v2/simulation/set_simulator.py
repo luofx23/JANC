@@ -3,8 +3,8 @@ import jax.numpy as jnp
 from .time_step import time_step_dict
 from ..solver_1D import flux as flux_1D
 from ..solver_1D import aux_func as aux_func_1D
-from ..solver_2D import flux as flux_2D
-from ..solver_2D import aux_func as aux_func_2D
+from ..solver_2D import flux #as flux
+from ..solver_2D import aux_func #as aux_func
 from ..model import thermo_model,reaction_model,transport_model
 from ..boundary import boundary
 from ..parallel import boundary as parallel_boundary
@@ -32,15 +32,15 @@ def set_rhs(dim,reaction_config,source_config=None,is_parallel=False,is_amr=Fals
         if is_amr:
             @partial(vmap,in_axes=(0,0,None,None,None,None))
             def flux_func(U, aux, dx, dy, dt, theta):
-                physical_rhs = dt*(flux_2D.total_flux(U,aux,dx,dy))
+                physical_rhs = dt*(flux.total_flux(U,aux,dx,dy))
                 return jnp.pad(physical_rhs,pad_width=((0,0),(3,3),(3,3)))
-            update_func = vmap(aux_func_2D.update_aux,in_axes=(0,0))
+            update_func = vmap(aux_func.update_aux,in_axes=(0,0))
         else:
             def flux_func(U, aux, dx, dy, dt, theta):
                 U_with_ghost,aux_with_ghost = boundary_conditions(U,aux,theta)
-                rhs = dt*(flux_2D.total_flux(U_with_ghost,aux_with_ghost,dx,dy))
+                rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,dx,dy))
                 return rhs
-            update_func = aux_func_2D.update_aux
+            update_func = aux_func.update_aux
             
     if reaction_config['is_detailed_chemistry']:
         if source_config is not None:
@@ -178,9 +178,9 @@ class Simulator:
         if dim == '1D':
             flux_1D.set_flux_solver(flux_config,transport_config,nondim_config)
         if dim == '2D':
-            flux_2D.set_flux_solver(flux_config,transport_config,nondim_config)
-            #print(flux_config['viscosity'],flux_2D.viscosity)
-            print(flux_2D.viscosity)
+            flux.set_flux_solver(flux_config,transport_config,nondim_config)
+            #print(flux_config['viscosity'],flux.viscosity)
+            print(flux.viscosity)
         boundary.set_boundary(boundary_config,dim)
         flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
         advance_func = set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_func,update_func,source_func)
@@ -200,6 +200,7 @@ class Simulator:
         return self.advance_func
 
     
+
 
 
 
