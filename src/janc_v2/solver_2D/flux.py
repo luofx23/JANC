@@ -118,10 +118,11 @@ def Euler_flux(U,aux,dx,dy):
     return advective_flux(U,aux,dx,dy)
 
 total_flux_dict = {'on':NS_flux,
-                   'off':None}#Euler_flux}
+                   'off':Euler_flux}
 
 def total_flux(U,aux,dx,dy):
     return total_flux_dict[viscosity](U,aux,dx,dy)
+
 
 
 
