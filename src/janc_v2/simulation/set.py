@@ -1,6 +1,5 @@
 from jax import jit
 import jax.numpy as jnp
-from ..solver_1D import time_step as time_step_1D
 from ..solver_1D import aux_func as aux_func_1D
 from ..solver_2D import rhs as rhs_2D
 from ..solver_2D import time_step as time_step_2D
@@ -53,6 +52,7 @@ def set_simulation(simulation_config):
             
 
     
+
 
 
 
