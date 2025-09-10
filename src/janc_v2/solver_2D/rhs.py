@@ -16,22 +16,23 @@ def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_
     if reaction_config['is_detailed_chemistry']:
         point_implicit = 'on'
 
-def rhs_explicit(U, aux, metrics, dt, theta):
-    U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,metrics,theta)
-    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics) + aux_func.user_source(U,aux,theta)) + reaction_model.reaction_source_terms(U,aux,dt,theta)
+def rhs_explicit(U, aux, dx, dy, dt, theta):
+    U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,theta)
+    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,dx,dy) + aux_func.user_source(U,aux,theta)) + reaction_model.reaction_source_terms(U,aux,dt,theta)
     return rhs
 
-def rhs_implicit(U, aux, metrics, dt, theta):
-    U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,metrics,theta)
-    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,metrics) + aux_func.user_source(U, aux, theta))
+def rhs_implicit(U, aux, dx, dy, dt, theta):
+    U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,theta)
+    rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,dx,dy) + aux_func.user_source(U, aux, theta))
     return rhs
 
 rhs_dict = {'off':rhs_explicit,
             'on':rhs_implicit}
 
-def rhs(U, aux, metrics,dt, theta):
-    return rhs_dict[point_implicit](U,aux,metrics,dt,theta)
+def rhs(U, aux, dx, dy, dt, theta):
+    return rhs_dict[point_implicit](U,aux,dx,dy,dt,theta)
     
+
 
 
 
