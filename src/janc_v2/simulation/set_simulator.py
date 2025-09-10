@@ -205,7 +205,51 @@ class Simulator:
     def get_step_func(self):
         return self.advance_func
 
+def noclass(simulation_config):
+    dim = simulation_config['dimension']
+    thermo_config = simulation_config['thermo_config']
+    reaction_config = simulation_config['reaction_config']
+    if 'transport_config' in simulation_config:
+        transport_config = simulation_config['transport_config']
+    else:
+        transport_config = None
+    flux_config = simulation_config['flux_config']
+    boundary_config = simulation_config['boundary_config']
+    if 'source_config' in simulation_config:
+        source_config = simulation_config['source_config']
+    else:
+        source_config = None
+    if 'nondim_config' in simulation_config:
+        nondim_config = simulation_config['nondim_config']
+    else:
+        nondim_config = None
+    time_control = simulation_config['time_control']
+    if 'computation_config' in simulation_config:
+        computation_config = simulation_config['computation_config']
+        is_parallel = computation_config['is_parallel']
+        is_amr = computation_config['is_amr']
+        if is_parallel and is_amr:
+            raise RuntimeError('The parallel version of AMR is currently unavaliable.')
+    else:
+        is_parallel = False
+        is_amr = False
+    thermo_model.set_thermo(thermo_config,nondim_config)
+    reaction_model.set_reaction(reaction_config,nondim_config,dim)
+    if dim == '1D':
+        flux_1D.set_flux_solver(flux_config,transport_config,nondim_config)
+    if dim == '2D':
+        flux.set_flux_solver(flux_config,transport_config,nondim_config)
+    boundary.set_boundary(boundary_config,dim)
+    flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
+    advance_func = set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_func,update_func,source_func)
+    if is_amr:
+        advance_func = jit(advance_func,static_argnames='level')
+    else:
+        advance_func = jit(advance_func)
+    return advance_func
+
     
+
 
 
 
