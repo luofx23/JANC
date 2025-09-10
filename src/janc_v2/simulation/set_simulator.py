@@ -173,7 +173,7 @@ class Simulator:
         else:
             is_parallel = False
             is_amr = False
-        thermo_model.set_thermo(thermo_config,nondim_config)
+        thermo_model.set_thermo(thermo_config,nondim_config,dim)
         reaction_model.set_reaction(reaction_config,nondim_config,dim)
         if dim == '1D':
             flux_1D.set_flux_solver(flux_config,transport_config,nondim_config)
@@ -195,6 +195,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
