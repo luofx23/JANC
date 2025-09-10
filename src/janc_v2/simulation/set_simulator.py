@@ -79,7 +79,6 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
                 def advance_flux(U,aux,dx,dt,theta=None):
                     return time_step_dict[time_scheme](U,aux,dx,dt,theta,flux_func,update_func)
             if dim == '2D':
-                print('this is it')
                 def advance_flux(U,aux,dx,dy,dt,theta=None):
                     return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
     else:
@@ -142,7 +141,15 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
                     aux = update_func(U, aux)
                     return U, aux
     else:
-        advance_one_step = advance_flux
+        #advance_one_step = advance_flux
+        def advance_one_step(U,aux,dx,dy,dt,theta=None):
+            U1 = U + flux_func(U,aux,dx,dy,dt,theta)
+            aux1 = update_func(U1, aux)
+            U2 = 3/4*U + 1/4 * (U1 + flux_func(U1,aux1,dx,dy,dt,theta))
+            aux2 = update_func(U2, aux1)
+            U3 = 1/3*U + 2/3 * (U2 + flux_func(U2,aux2,dx,dy,dt,theta))
+            aux3 = update_func(U3, aux2)
+            return U3,aux3
     return advance_one_step
 
 class Simulator:
@@ -199,6 +206,7 @@ class Simulator:
         return self.advance_func
 
     
+
 
 
 
