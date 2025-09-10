@@ -9,6 +9,7 @@ from ..model import thermo_model,reaction_model,transport_model
 from ..boundary import boundary
 from ..parallel import boundary as parallel_boundary
 from functools import partial
+from tqdm import tqdm
 
 
 def set_rhs(dim,reaction_config,source_config=None,is_parallel=False,is_amr=False):
@@ -188,6 +189,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
