@@ -43,12 +43,12 @@ def set_rhs(dim,reaction_config,source_config=None,is_parallel=False,is_amr=Fals
             update_func = aux_func_2D.update_aux
             
     if reaction_config['is_detailed_chemistry']:
-        if source_config['self_defined_source_terms'] is not None:
+        if source_config is not None:
             source_func  = source_config['self_defined_source_terms']
         else:
             source_func = None
     else:
-        if source_config['self_defined_source_terms'] is not None:
+        if source_config is not None:
             user_source_func  = source_config['self_defined_source_terms']
             def source_func(U, aux, dt, theta):
                 return user_source_func(U,aux,theta)*dt + reaction_model.reaction_source_terms(U,aux,dt,theta)
@@ -192,6 +192,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
