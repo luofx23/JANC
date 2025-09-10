@@ -27,6 +27,23 @@ LES_model = 'WALE'
 
 def set_transport(transport_config,nondim_config=None,dim='2D'):
     global Pr_t,Sc_t, Le_t,LES_model,model,nu_type, k_type, D_type, Pr, Sc, Le, nu0, k0, D0,mu_ref,T_ref,S
+    mu_ref = 1.716e-5
+    T_ref = 273.15
+    S = 110.4
+    nu0 = 1e-4
+    Pr = 0.72
+    Pr_t = 0.72
+    Sc = 0.72
+    Sc_t = 0.72
+    Le = 1.0
+    Le_t = 1.0
+    k0 = 0.0
+    D0 = 0.0
+    nu_type = 'Sutherland'
+    k_type = 'Prandtl number'
+    D_type = 'Lewis number'
+    model = 'laminar'
+    LES_model = 'WALE'
     if transport_config['viscosity_model'] == 'constant':
         nu_type = 'constant'
         nu0 = transport_config['dynamic_viscosity']
@@ -147,6 +164,7 @@ def D(mu,rho,cp_i,mu_t):
     
     
     
+
 
 
 
