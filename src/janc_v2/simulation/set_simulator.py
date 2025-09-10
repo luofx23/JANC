@@ -173,7 +173,10 @@ class Simulator:
             is_amr = False
         thermo_model.set_thermo(thermo_config,nondim_config)
         reaction_model.set_reaction(reaction_config,nondim_config,dim)
-        flux.set_flux_solver(flux_config,transport_config,nondim_config)
+        if dim == '1D':
+            flux_1D.set_flux_solver(flux_config,transport_config,nondim_config)
+        if dim == '2D':
+            flux_2D.set_flux_solver(flux_config,transport_config,nondim_config)
         boundary.set_boundary(boundary_config)
         flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
         advance_func = set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_func,update_func,source_func)
@@ -189,6 +192,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
