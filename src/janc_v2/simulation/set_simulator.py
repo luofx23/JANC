@@ -1,3 +1,5 @@
+import jax
+from jax.sharding import Mesh, PartitionSpec as P
 from jax import vmap,jit
 import jax.numpy as jnp
 from .time_step import time_step_dict
@@ -11,7 +13,18 @@ from ..parallel import boundary as parallel_boundary
 from functools import partial
 from tqdm import tqdm
 
+def CFL_1D(U,aux,dx,cfl=0.30):
+    _,u,_,_,a = aux_func_1D.U_to_prim(U,aux)
+    sx = jnp.abs(u) + a
+    return cfl*jnp.min(dx/sx)
 
+def CFL_2D(U,aux,dx,dy,cfl=0.30):
+    _,u,v,_,a = aux_func.U_to_prim(U,aux)
+    sx = jnp.abs(u) + a
+    sy = jnp.abs(v) + a
+    dt = cfl*jnp.min(1/(sx/dx + sy/dy))
+    return dt
+    
 def set_rhs(dim,reaction_config,source_config=None,is_parallel=False,is_amr=False):
     if dim == '1D':
         if is_parallel:
@@ -147,6 +160,7 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
 class Simulator:
     def __init__(self,simulation_config):
         dim = simulation_config['dimension']
+        grid_config = simulation_config['grid_config']
         thermo_config = simulation_config['thermo_config']
         reaction_config = simulation_config['reaction_config']
         if 'transport_config' in simulation_config:
@@ -164,6 +178,7 @@ class Simulator:
         else:
             nondim_config = None
         time_control = simulation_config['time_control']
+                    
         if 'computation_config' in simulation_config:
             computation_config = simulation_config['computation_config']
             is_parallel = computation_config['is_parallel']
@@ -173,6 +188,11 @@ class Simulator:
         else:
             is_parallel = False
             is_amr = False
+        if 'solver_parameters' in simulation_config:
+            theta = simulation_config['solver_parameters']
+        else:
+            theta = None
+            
         thermo_model.set_thermo(thermo_config,nondim_config,dim)
         reaction_model.set_reaction(reaction_config,nondim_config,dim)
         if dim == '1D':
@@ -181,7 +201,37 @@ class Simulator:
             flux.set_flux_solver(flux_config,transport_config,nondim_config)
         boundary.set_boundary(boundary_config,dim)
         flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
-        advance_func = set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_func,update_func,source_func)
+        advance_func_body = set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_func,update_func,source_func)
+        
+        if 'dt' in time_control:
+            dt = time_control['dt']
+            if dim == '1D':
+                dx = grid_config['dx']
+                def advance_func(U,aux,t):
+                    U, aux = advance_func_body(U,aux,dx,dt,theta)
+                    t = t + dt
+                    return U,aux,t
+            if dim == '2D':
+                dx, dy = grid_config['dx'], grid_config['dy']
+                def advance_func(U,aux,t):
+                    U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
+                    t = t + dt
+                    return U,aux,t
+
+        if 'CFL' in time_control:
+            CFL = time_control['CFL']
+            if dim == '1D':
+                dx = grid_config['dx']
+                def advance_func(U,aux,t):
+                    dt = CFL_1D(U,aux,dx)
+                    U, aux = advance_func_body(U,aux,dx,dt,theta)
+                    return U, aux, t+dt
+            if dim == '2D':
+                dx, dy = grid_config['dx'],grid_config['dy']
+                def advance_func(U,aux,t):
+                    dt = CFL_2D(U,aux,dx,dy)
+                    U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
+                    return U, aux, t+dt                    
         if is_amr:
             self.advance_func = jit(advance_func,static_argnames='level')
         else:
@@ -195,6 +245,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
