@@ -140,6 +140,8 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
                     U = U + dU
                     aux = update_func(U, aux)
                     return U, aux
+    else:
+        advance_one_step = advance_flux
     return advance_one_step
 
 class Simulator:
@@ -193,6 +195,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
