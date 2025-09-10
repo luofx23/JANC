@@ -5,7 +5,7 @@ from ..preprocess import nondim
 
 Rg = 8.314463
 
-def read_reaction_mechanism(file_path,nondim_config=None):
+def read_reaction_mechanism(file_path,nondim_config=None,dim='2D'):
     
     nondim.set_nondim(nondim_config)
     
@@ -58,9 +58,18 @@ def read_reaction_mechanism(file_path,nondim_config=None):
     third_body_coeffs = third_body_coeffs*(nondim.rho0/nondim.M0)
 
     #形状填充
-    third_body_coeffs = jnp.expand_dims(third_body_coeffs,(2,3))
-    vf = jnp.expand_dims(vf,(2,3))
-    vb = jnp.expand_dims(vb,(2,3))
+    if dim == '1D':
+        third_body_coeffs = jnp.expand_dims(third_body_coeffs,(2,))
+        vf = jnp.expand_dims(vf,(2,))
+        vb = jnp.expand_dims(vb,(2,))
+    if dim == '2D':
+        third_body_coeffs = jnp.expand_dims(third_body_coeffs,(2,3))
+        vf = jnp.expand_dims(vf,(2,3))
+        vb = jnp.expand_dims(vb,(2,3))
+    if dim == '3D':
+        third_body_coeffs = jnp.expand_dims(third_body_coeffs,(2,3,4))
+        vf = jnp.expand_dims(vf,(2,3,4))
+        vb = jnp.expand_dims(vb,(2,3,4))
 
     ReactionParams = {
         'species': species_list,
@@ -79,7 +88,7 @@ def read_reaction_mechanism(file_path,nondim_config=None):
     return ReactionParams
 
 
-def get_cantera_coeffs(species_list,mech='gri30.yaml',nondim_config=None):
+def get_cantera_coeffs(species_list,mech='gri30.yaml',nondim_config=None,dim='2D'):
     nondim.set_nondim(nondim_config)
     gas = ct.Solution(mech)
     species_M = []
@@ -97,8 +106,12 @@ def get_cantera_coeffs(species_list,mech='gri30.yaml',nondim_config=None):
     coeffs_low = jnp.array(coeffs_low)*jnp.array([[1,nondim.T0,nondim.T0**2,nondim.T0**3,nondim.T0**4,1/nondim.T0,1]])
     coeffs_high = jnp.array(coeffs_high)*jnp.array([[1,nondim.T0,nondim.T0**2,nondim.T0**3,nondim.T0**4,1/nondim.T0,1]])
     species_M = jnp.array(species_M)/(1000*nondim.M0)
-    Mex = jnp.expand_dims(species_M,(1,2))
-    
+    if dim == '1D':
+        Mex = jnp.expand_dims(species_M,(1,))
+    if dim == '2D':
+        Mex = jnp.expand_dims(species_M,(1,2))
+    if dim == '3D':
+        Mex = jnp.expand_dims(species_M,(1,2,3))
     Tcr = jnp.array(Tcr)/nondim.T0
     
     cp_cof_low = jnp.flip(coeffs_low[:,0:5],axis=1)/species_M[:,None]
@@ -120,6 +133,7 @@ def get_cantera_coeffs(species_list,mech='gri30.yaml',nondim_config=None):
     logcof_high = coeffs_high[:,0]
     
     return species_M,Mex,Tcr,cp_cof_low,cp_cof_high,dcp_cof_low,dcp_cof_high,h_cof_low,h_cof_high,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
+
 
 
 
