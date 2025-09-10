@@ -235,20 +235,27 @@ def noclass(simulation_config):
         is_amr = False
     thermo_model.set_thermo(thermo_config,nondim_config)
     reaction_model.set_reaction(reaction_config,nondim_config,dim)
-    if dim == '1D':
-        flux_1D.set_flux_solver(flux_config,transport_config,nondim_config)
-    if dim == '2D':
-        flux.set_flux_solver(flux_config,transport_config,nondim_config)
+    flux.set_flux_solver(flux_config,transport_config,nondim_config)
     boundary.set_boundary(boundary_config,dim)
-    flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
-    advance_func = set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_func,update_func,source_func)
-    if is_amr:
-        advance_func = jit(advance_func,static_argnames='level')
-    else:
-        advance_func = jit(advance_func)
+    def flux_func(U, aux, dx, dy, dt, theta):
+        U_with_ghost,aux_with_ghost = boundary.boundary_conditions_2D(U,aux,theta)
+        rhs = dt*(flux.total_flux(U_with_ghost,aux_with_ghost,dx,dy))
+        return rhs
+        
+    @jit
+    def advance_func(U,aux,dx,dy,dt,theta=None):
+        U1 = U + flux_func(U,aux,dx,dy,dt,theta)
+        aux1 = aux_func.update_aux(U1, aux)
+        U2 = 3/4*U + 1/4 * (U1 + flux_func(U1,aux1,dx,dy,dt,theta))
+        aux2 = aux_func.update_aux(U2, aux1)
+        U3 = 1/3*U + 2/3 * (U2 + flux_func(U2,aux2,dx,dy,dt,theta))
+        aux3 = aux_func.update_aux(U3, aux2)
+        return U3,aux3
+    
     return advance_func
 
     
+
 
 
 
