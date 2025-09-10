@@ -68,7 +68,7 @@ def viscous_flux_node(U, aux, dx):
     du_dx = d_dx_dict[viscosity_discretization](u,dx);
     dT_dx = d_dx_dict[viscosity_discretization](T,dx);
     dY_dx = d_dx_dict[viscosity_discretization](Y,dx); 
-    mu,mu_t = transport_model.mu(ρ,T,metrics,du_dx,None,None,None,None,None,None,None,None)
+    mu,mu_t = transport_model.mu(ρ,T,dx,None,None,du_dx,None,None,None,None,None,None,None,None)
     k = transport_model.kappa(mu,cp, mu_t)
     D_k = transport_model.D(mu,ρ,cp_k,mu_t)
     S11 = du_dx;
@@ -100,6 +100,7 @@ total_flux_dict = {'on':NS_flux,
 
 def total_flux(U,aux,dx):
     return total_flux_dict[viscosity](U,aux,dx)
+
 
 
 
