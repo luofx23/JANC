@@ -108,8 +108,8 @@ def mu_LES(rho,T,dx,dy,dz,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
 total_mu_dict = {'laminar':mu_laminar,
                  'LES':mu_LES}
 
-def mu(rho,T,V,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
-    mu,mu_t = total_mu_dict[model](rho,T,V,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz)
+def mu(rho,T,dx,dy,dz,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
+    mu,mu_t = total_mu_dict[model](rho,T,dx,dy,dz,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz)
     return mu, mu_t
 
 def kappa_Pr(mu,cp,mu_t):
@@ -147,6 +147,7 @@ def D(mu,rho,cp_i,mu_t):
     
     
     
+
 
 
 
