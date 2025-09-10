@@ -179,7 +179,7 @@ class Simulator:
             flux_1D.set_flux_solver(flux_config,transport_config,nondim_config)
         if dim == '2D':
             flux.set_flux_solver(flux_config,transport_config,nondim_config)
-            #print(flux_config['viscosity'],flux.viscosity)
+            print(flux_config['viscosity'],flux.viscosity)
             print(flux.viscosity)
         boundary.set_boundary(boundary_config,dim)
         flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
@@ -200,6 +200,7 @@ class Simulator:
         return self.advance_func
 
     
+
 
 
 
