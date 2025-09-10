@@ -2,8 +2,8 @@ import jax.numpy as jnp
 
 c = 0.07
 
-def mu_t_2D(rho,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
-    d1,d2 = metrics['dx'],metrics['dy']
+def mu_t_2D(rho,dx,dy,dz,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
+    d1,d2 = dx,dy
     a11,a12 = dudx,dvdx
     a21,a22 = dudy,dvdy
     b11_x,b12_x = (d1**2)*a11*a11,(d1**2)*a11*a12
