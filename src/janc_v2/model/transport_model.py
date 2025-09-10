@@ -97,12 +97,12 @@ def mu_constant(rho,T):
 mu_dict = {'Sutherland':mu_Sutherland,
            'constant':mu_constant}
 
-def mu_laminar(rho,T,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
+def mu_laminar(rho,T,dx,dy,dz,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
     return mu_dict[nu_type](rho,T), 0.0
 
-def mu_LES(rho,T,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
+def mu_LES(rho,T,dx,dy,dz,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz):
     mu = mu_dict[nu_type](rho,T)
-    mu_t = LES_SGS_dict[LES_model](rho,metrics,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz)
+    mu_t = LES_SGS_dict[LES_model](rho,dx,dy,dz,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz)
     return mu + mu_t, mu_t
 
 total_mu_dict = {'laminar':mu_laminar,
@@ -147,6 +147,7 @@ def D(mu,rho,cp_i,mu_t):
     
     
     
+
 
 
 
