@@ -8,7 +8,7 @@ def set_rhs(thermo_config,reaction_config,flux_config,transport_config,boundary_
     global point_implicit
     dim = '2D'
     thermo_model.set_thermo(thermo_config)
-    reaction_model.set_reaction(reaction_config,dim)
+    reaction_model.set_reaction(reaction_config,None,dim)
     flux.set_flux_solver(flux_config,transport_config)
     boundary.set_boundary(boundary_config,dim)
     aux_func.set_source_terms(source_config)
@@ -31,6 +31,7 @@ rhs_dict = {'off':rhs_explicit,
 def rhs(U, aux, dx, dy, dt, theta):
     return rhs_dict[point_implicit](U,aux,dx,dy,dt,theta)
     
+
 
 
 
