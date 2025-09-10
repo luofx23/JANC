@@ -187,11 +187,13 @@ class Simulator:
 
     def run(self,nt,U_init,aux_init,dx,dy,dt,theta):
         advance_func = self.advance_func
+        U,aux = U_init,aux_init
         for step in tqdm(range(nt),desc="progress", unit="step"):
               U, aux = advance_func(U,aux,dx,dy,dt,theta)
         return U, aux
 
     
+
 
 
 
