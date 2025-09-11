@@ -242,7 +242,7 @@ class Simulator:
         U,aux = U_init,aux_init
         t = 0.0
         pbar = tqdm(total=t_end, desc="Progress", unit="t")
-        while t < tend:
+        while t < t_end:
             U, aux, tn = advance_func(U,aux,t)
             dt = tn - t
             pbar.update(dt)  
@@ -251,6 +251,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
