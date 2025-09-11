@@ -237,20 +237,24 @@ class Simulator:
         else:
             self.advance_func = jit(advance_func)
 
-    def run(self,U_init,aux_init,t_end):
+    def run(self,U_init,aux_init,t_end,nt):
         advance_func = self.advance_func
         U,aux = U_init,aux_init
         t = 0.0
-        pbar = tqdm(total=t_end, desc="Progress", unit="t")
-        while t < t_end:
-            U, aux, tn = advance_func(U,aux,t)
-            dt = tn - t
-            pbar.update(dt)  
-            pbar.set_postfix({"t": f"{tn:.3f}", "dt": f"{dt:.3e}"})
-            t = tn
+        for step in tqdm(range(nt),desc="progress", unit="step"):
+            U, aux, t = advance_func(U,aux,t)
+        return U, aux, t
+        #pbar = tqdm(total=t_end, desc="Progress", unit="t")
+        #while t < t_end:
+        #    U, aux, tn = advance_func(U,aux,t)
+        #    dt = tn - t
+        #    pbar.update(dt)  
+        #    pbar.set_postfix({"t": f"{tn:.3f}", "dt": f"{dt:.3e}"})
+        #    t = tn
         return U, aux
 
     
+
 
 
 
