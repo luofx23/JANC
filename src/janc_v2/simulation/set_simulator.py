@@ -19,7 +19,7 @@ def CFL_1D(U,aux,dx,cfl=0.30):
     return cfl*jnp.min(dx/sx)
 
 def CFL_2D(U,aux,dx,dy,cfl=0.30):
-    _,u,v,_,a = aux_func.U_to_prim(U,aux)
+    _,u,v,_,_,a = aux_func.U_to_prim(U,aux)
     sx = jnp.abs(u) + a
     sy = jnp.abs(v) + a
     dt = cfl*jnp.min(1/(sx/dx + sy/dy))
@@ -251,6 +251,7 @@ class Simulator:
         return U, aux
 
     
+
 
 
 
