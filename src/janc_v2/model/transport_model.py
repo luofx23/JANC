@@ -50,10 +50,10 @@ def set_transport(transport_config,nondim_config=None,dim='2D'):
     elif transport_config['viscosity_model'] == 'Sutherland':
         if 'reference_viscosity' in transport_config:
             mu_ref = transport_config['reference_viscosity']
-        if 'reference_temprature' in transport_config:
-            T_ref = transport_config['reference_temprature']
-        if 'effective_temprature' in transport_config:
-            S = transport_config['effective_temprature']
+        if 'reference_temperature' in transport_config:
+            T_ref = transport_config['reference_temperature']
+        if 'effective_temperature' in transport_config:
+            S = transport_config['effective_temperature']
     else:
         raise KeyError("Only 'Sutherland' and 'constant' viscosity model are supported.")
     if transport_config['thermal_conductivity_model'] == 'constant':
@@ -164,6 +164,7 @@ def D(mu,rho,cp_i,mu_t):
     
     
     
+
 
 
 
