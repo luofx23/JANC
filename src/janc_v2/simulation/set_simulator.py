@@ -223,13 +223,13 @@ class Simulator:
             if dim == '1D':
                 dx = grid_config['dx']
                 def advance_func(U,aux,t):
-                    dt = CFL_1D(U,aux,dx)
+                    dt = CFL_1D(U,aux,dx,CFL)
                     U, aux = advance_func_body(U,aux,dx,dt,theta)
                     return U, aux, t+dt
             if dim == '2D':
                 dx, dy = grid_config['dx'],grid_config['dy']
                 def advance_func(U,aux,t):
-                    dt = CFL_2D(U,aux,dx,dy)
+                    dt = CFL_2D(U,aux,dx,dy,CFL)
                     U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
                     return U, aux, t+dt                    
         if is_amr:
@@ -251,9 +251,9 @@ class Simulator:
         #    pbar.update(dt)  
         #    pbar.set_postfix({"t": f"{tn:.3f}", "dt": f"{dt:.3e}"})
         #    t = tn
-        return U, aux
 
     
+
 
 
 
