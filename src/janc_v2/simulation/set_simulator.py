@@ -381,8 +381,8 @@ def AMR_Simulator(simulation_config):
     time_control = simulation_config['time_config']
     if 'solver_parameters' in simulation_config:
             theta = simulation_config['solver_parameters']
-        else:
-            theta = None
+    else:
+        theta = None
     thermo_model.set_thermo(thermo_config,nondim_config,dim)
     reaction_model.set_reaction(reaction_config,nondim_config,dim)
     flux.set_flux_solver(flux_config,transport_config,nondim_config)
@@ -391,6 +391,7 @@ def AMR_Simulator(simulation_config):
     advance_func_amr = set_advance_func(dim,flux_config,reaction_config,time_control,True,flux_func,update_func,source_func)
     advance_func_base = set_advance_func(dim,flux_config,reaction_config,time_control,False,flux_func,update_func,source_func)
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
