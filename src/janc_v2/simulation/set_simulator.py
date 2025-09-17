@@ -390,8 +390,14 @@ def AMR_Simulator(simulation_config):
     flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,False,True)
     advance_func_amr = set_advance_func(dim,flux_config,reaction_config,time_control,True,flux_func,update_func,source_func)
     flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,False,False)
-    advance_func_base = set_advance_func(dim,flux_config,reaction_config,time_control,False,flux_func,update_func,source_func)
+    advance_func_body = set_advance_func(dim,flux_config,reaction_config,time_control,False,flux_func,update_func,source_func)
+    def advance_func_base(blk_data,dx,dy,dt,theta=None):
+        U, aux = blk_data[0,:-2],blk_data[0,-2:]
+        U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
+        blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
+        return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
