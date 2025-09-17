@@ -177,7 +177,12 @@ class H5Saver:
             step: 当前步数
             arrays: 需要保存的 JAX arrays，形式为 name=array
         """
-        grp = self.file.create_group(f"save_step{save_step}")
+        key = f"save_step{save_step}"
+        # 避免 name already exists
+        if key in self.file:
+            del self.file[key]
+        grp = self.file.create_group(key)
+        #grp = self.file.create_group(f"save_step{save_step}")
         grp.attrs["time"] = t
         grp.attrs["step"] = step
         for name, arr in arrays.items():
@@ -337,6 +342,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
