@@ -167,7 +167,7 @@ class H5Saver:
         # 新建文件（如果已存在会覆盖）
         self.file = h5py.File(self.filepath, "w")
 
-    def save(self, t: float, step: int, **arrays: jnp.ndarray):
+    def save(self, save_step: int, t: float, step: int, **arrays: jnp.ndarray):
         """
         保存一个时间步的数据
         参数:
@@ -175,7 +175,7 @@ class H5Saver:
             step: 当前步数
             arrays: 需要保存的 JAX arrays，形式为 name=array
         """
-        grp = self.file.create_group(f"t_{t:.6f}")
+        grp = self.file.create_group(f"save_step{save_step}")
         grp.attrs["time"] = t
         grp.attrs["step"] = step
         for name, arr in arrays.items():
@@ -297,6 +297,7 @@ class Simulator:
         U,aux = U_init,aux_init
         t = 0.0
         step = 0
+        save_step = 0
         save_dt = self.save_dt
         next_save_time = save_dt
         results_path = self.results_path
@@ -308,9 +309,10 @@ class Simulator:
                 step += 1
                 # 存储中间结果
                 if t >= next_save_time or t >= t_end:
-                    saver.save(t, step, u=U)  # 保存
+                    saver.save(save_step, t, step, u=U)  # 保存
                     print(f"[SAVE] t = {t:.3f}, step = {step}")
                     next_save_time += save_dt
+                    save_step += 1
 
                 # 更新进度条
                 pbar.update(float(dt))
@@ -334,6 +336,7 @@ class Simulator:
         #    t = tn
 
     
+
 
 
 
