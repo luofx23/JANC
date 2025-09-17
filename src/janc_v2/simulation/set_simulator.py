@@ -165,7 +165,7 @@ class H5Saver:
     def __init__(self, filepath: str | Path):
         self.filepath = Path(filepath)
         # 新建文件（如果已存在会覆盖）
-        self.file = h5py.File(self.filepath, "w")
+        self.file = h5py.File(self.filepath, "a")
 
     def save(self, save_step: int, t: float, step: int, **arrays: jnp.ndarray):
         """
@@ -222,6 +222,7 @@ class Simulator:
         else:
             nondim_config = None
         time_control = simulation_config['time_config']
+        self.t_end = time_control['t_end']
                     
         if 'computation_config' in simulation_config:
             computation_config = simulation_config['computation_config']
@@ -235,6 +236,11 @@ class Simulator:
         else:
             is_parallel = False
             is_amr = False
+            self.save_dt = t_end
+            self.results_path = 'results.h5'
+
+        self.saver = H5Saver(results_path)
+        
         if 'solver_parameters' in simulation_config:
             theta = simulation_config['solver_parameters']
         else:
@@ -280,12 +286,6 @@ class Simulator:
                     U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
                     return U, aux, t+dt, dt
 
-        if 'nt' in time_control:
-            self.nt = time_control['nt']
-            self.t_end = None
-        if 't_end' in time_control:
-            self.nt = None
-            self.t_end = time_control['t_end']
         
         if is_amr:
             self.advance_func = jit(advance_func,static_argnames='level')
@@ -294,16 +294,15 @@ class Simulator:
 
     def run(self,U_init,aux_init):
         advance_func = self.advance_func
-        U,aux = U_init,aux_init
+        U, aux = U_init,aux_init
         t = 0.0
         step = 0
-        save_step = 0
+        save_step = 1
+        saver.save(save_step=0, t=t, step=step, u=U)
         save_dt = self.save_dt
         next_save_time = save_dt
-        results_path = self.results_path
-        saver = H5Saver(results_path)
         t_end = self.t_end
-        bar_format = "{l_bar}{bar}| {n_fmt:4.0g}/{total_fmt:4.0g} [{elapsed}<{remaining}]"
+        bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
         with tqdm(total=t_end, desc="Simulation", bar_format=bar_format) as pbar:
             while t < t_end:
                 U, aux, t, dt = advance_func(U,aux,t)
@@ -324,17 +323,15 @@ class Simulator:
                     pbar.update(float(dt))
         saver.close()
         return U, aux, t
-                
-                
-        #for step in tqdm(range(nt),desc="progress", unit="step"):
-            #U, aux, t = advance_func(U,aux,t)
-        #return U, aux, t
-        #pbar = tqdm(total=t_end, desc="Progress", unit="t")
-        #while t < t_end:
-        #    U, aux, tn = advance_func(U,aux,t)
-        #    dt = tn - t
-        #    pbar.update(dt)  
-        #    pbar.set_postfix({"t": f"{tn:.3f}", "dt": f"{dt:.3e}"})
-        #    t = tn
+
+    #def continue(self):
+        #save_step = len(self.saver.list_snapshots())
+        #file_name = 'step_' + str(save_step)
+        #data,meta = self.saver.load(file_name)
+        #U_init = jnp.array(data['u'])
+        #T_init = jnp.full_like(U_init[0:1],500)
+        #gamma_init = jnp.full_like(T_init,1.40)
+        #aux_init = 
+
 
 
