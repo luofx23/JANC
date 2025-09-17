@@ -196,6 +196,8 @@ class H5Saver:
 
     def load(self, key: str):
         "加载指定时间步的数据，返回 dict"
+        if not self.file or not self.file.id.valid:
+            self.file = h5py.File(self.filepath, 'r')
         grp = self.file[key]
         out = {}
         for name in grp.keys():
@@ -342,6 +344,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
