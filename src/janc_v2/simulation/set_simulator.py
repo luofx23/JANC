@@ -239,7 +239,7 @@ class Simulator:
             self.save_dt = t_end
             self.results_path = 'results.h5'
 
-        self.saver = H5Saver(results_path)
+        self.saver = H5Saver(self.results_path)
         
         if 'solver_parameters' in simulation_config:
             theta = simulation_config['solver_parameters']
@@ -332,6 +332,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
