@@ -263,19 +263,21 @@ class Simulator:
                     
         if 'computation_config' in simulation_config:
             computation_config = simulation_config['computation_config']
-            is_parallel = computation_config['is_parallel']
-            is_amr = computation_config['is_amr']
-            if is_parallel and is_amr:
-                raise RuntimeError('The parallel version of AMR is currently unavaliable.')
-            output_settings = computation_config['output_settings']
-            self.save_dt = output_settings['save_dt']
-            self.results_path = output_settings['results_path']
+            if 'is_parallel' in computation_config:
+                is_parallel = computation_config['is_parallel']
+            else:
+                is_parallel = False
+
+            if 'output_settings' in computation_config:
+                self.save_dt = output_settings['save_dt']
+                self.results_path = output_settings['results_path']
+            else:
+                self.save_dt = self.t_end
+                self.results_path = 'results.h5'
         else:
             is_parallel = False
-            is_amr = False
             self.save_dt = self.t_end
             self.results_path = 'results.h5'
-
         self.saver = H5Saver(self.results_path,dim)
         
         if 'solver_parameters' in simulation_config:
@@ -300,12 +302,6 @@ class Simulator:
                 dy = None
             if dim == '2D':
                 dx, dy = grid_config['dx'], grid_config['dy']
-                #def advance_func(U,aux,t):
-                    #U, aux = advance_func_body(U,aux,dx,None,dt,theta)
-                    #t = t + dt
-                    #return U,aux,t,dt
-            #if dim == '2D':
-                #dx, dy = grid_config['dx'], grid_config['dy']
             def advance_func(U,aux,t):
                 U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
                 t = t + dt
@@ -348,31 +344,54 @@ class Simulator:
             while t < t_end:
                 U, aux, t, dt = advance_func(U,aux,t)
                 step += 1
-                # 存储中间结果
+
                 if t >= next_save_time or t >= t_end:
                     self.saver.save(save_step, t, step, u=U)  # 保存
                     #tqdm.write(f"[SAVE] t = {t:.3e}, step = {step}")
                     next_save_time += save_dt
                     save_step += 1
 
-                # 更新进度条
-                # 防止 t 超过 total 后 tqdm 报警告
                 if t > t_end:
                     pbar.n = pbar.total
                     pbar.refresh()
                 else:
                     pbar.update(float(dt))
+                    
         self.saver.close()
         return U, aux, t
 
-    #def continue(self):
-        #save_step = len(self.saver.list_snapshots())
-        #file_name = 'step_' + str(save_step)
-        #data,meta = self.saver.load(file_name)
-        #U_init = jnp.array(data['u'])
-        #T_init = jnp.full_like(U_init[0:1],500)
-        #gamma_init = jnp.full_like(T_init,1.40)
-        #aux_init = 
+def AMR_Simulator(simulation_config):
+    dim = '2D'
+    thermo_config = simulation_config['thermo_config']
+    reaction_config = simulation_config['reaction_config']
+    if 'transport_config' in simulation_config:
+        transport_config = simulation_config['transport_config']
+    else:
+        transport_config = None
+    flux_config = simulation_config['flux_config']
+    boundary_config = simulation_config['boundary_config']
+    if 'source_config' in simulation_config:
+        source_config = simulation_config['source_config']
+    else:
+        source_config = None
+    if 'nondim_config' in simulation_config:
+        nondim_config = simulation_config['nondim_config']
+    else:
+        nondim_config = None
+    time_control = simulation_config['time_config']
+    if 'solver_parameters' in simulation_config:
+            theta = simulation_config['solver_parameters']
+        else:
+            theta = None
+    thermo_model.set_thermo(thermo_config,nondim_config,dim)
+    reaction_model.set_reaction(reaction_config,nondim_config,dim)
+    flux.set_flux_solver(flux_config,transport_config,nondim_config)
+    boundary.set_boundary(boundary_config,dim)
+    flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
+    advance_func_amr = set_advance_func(dim,flux_config,reaction_config,time_control,True,flux_func,update_func,source_func)
+    advance_func_base = set_advance_func(dim,flux_config,reaction_config,time_control,False,flux_func,update_func,source_func)
+    return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
