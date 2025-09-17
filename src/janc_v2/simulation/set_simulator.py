@@ -320,8 +320,8 @@ class Simulator:
                 if t > t_end:
                     pbar.n = pbar.total
                     pbar.refresh()
-                else:
-                    pbar.update(float(dt))
+                #else:
+                pbar.update(float(dt))
         saver.close()
         return U, aux, t
 
@@ -333,6 +333,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
