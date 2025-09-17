@@ -34,7 +34,7 @@ def set_rhs(dim,reaction_config,source_config=None,is_parallel=False,is_amr=Fals
             boundary_conditions = parallel_boundary.boundary_conditions_1D
         else:
             boundary_conditions = boundary.boundary_conditions_1D
-        def flux_func(U, aux, dx, dt, theta):
+        def flux_func(U, aux, dx, dy, dt, theta):
             U_with_ghost,aux_with_ghost = boundary_conditions(U,aux,theta)
             rhs = dt*(flux_1D.total_flux(U_with_ghost,aux_with_ghost,dx))
             return rhs
@@ -91,71 +91,73 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
             def advance_flux(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
                 return time_step_dict[time_scheme](level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta, flux_func, update_func)
         else:
-            if dim == '1D':
-                def advance_flux(U,aux,dx,dt,theta=None):
-                    return time_step_dict[time_scheme](U,aux,dx,dt,theta,flux_func,update_func)
-            if dim == '2D':
-                def advance_flux(U,aux,dx,dy,dt,theta=None):
-                    return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
+            def advance_flux(U,aux,dx,dy,dt,theta=None):
+                return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
+            #if dim == '1D':
+                #def advance_flux(U,aux,dx,dy,dt,theta=None):
+                    #return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
+            #if dim == '2D':
+                #def advance_flux(U,aux,dx,dy,dt,theta=None):
+                    #return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
     else:
         if solver_type == 'flux_splitting':
-            if dim == '1D':
-                def rhs_func(U,aux,dx,dt,theta=None):
-                    return flux_func(U,aux,dx,dt,theta) + source_func(U,aux,dt,theta)
-                def advance_flux(U,aux,dx,dt,theta=None):
-                    return time_step_dict[time_scheme](U,aux,dx,dt,theta,rhs_func,update_func)
-            if dim == '2D':
-                def rhs_func(U,aux,dx,dy,dt,theta=None):
-                    return flux_func(U,aux,dx,dy,dt,theta) + source_func(U,aux,dt,theta)
-                if is_amr:
-                    def advance_flux(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
-                        return time_step_dict[time_scheme](level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta, rhs_func, update_func)
-                else:
-                    def advance_flux(U,aux,dx,dy,dt,theta=None):
-                        return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,rhs_func,update_func)
+            #if dim == '1D':
+                #def rhs_func(U,aux,dx,dt,theta=None):
+                    #return flux_func(U,aux,dx,dt,theta) + source_func(U,aux,dt,theta)
+                #def advance_flux(U,aux,dx,dt,theta=None):
+                    #return time_step_dict[time_scheme](U,aux,dx,dt,theta,rhs_func,update_func)
+            #if dim == '2D':
+            def rhs_func(U,aux,dx,dy,dt,theta=None):
+                return flux_func(U,aux,dx,dy,dt,theta) + source_func(U,aux,dt,theta)
+            if is_amr:
+                def advance_flux(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
+                    return time_step_dict[time_scheme](level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta, rhs_func, update_func)
+            else:
+                def advance_flux(U,aux,dx,dy,dt,theta=None):
+                    return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,rhs_func,update_func)
         if solver_type == 'godunov':
-            if dim == '1D':
-                def wrapped_source_func(U,aux,dx,dt,theta=None):
-                    return source_func(U,aux,dt,theta)
-                def advance_flux(U,aux,dx,dt,theta=None):
-                    U_adv,aux_adv = time_step_dict[time_scheme](U,aux,dx,dt,theta,flux_func,update_func)
-                    return time_step_dict[time_scheme](U_adv,aux_adv,dx,dt,theta,wrapped_source_func,update_func)
-            if dim == '2D':
-                def wrapped_source_func(U,aux,dx,dy,dt,theta=None):
-                    return source_func(U,aux,dt,theta)
-                if is_amr:
-                    def advance_flux(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
-                        field_adv = time_step_dict[time_scheme](level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta, flux_func, update_func)
-                        return time_step_dict[time_scheme](level, blk_data, dx, dy, dt, field_adv, ref_blk_info, theta, wrapped_source_func, update_func)
-                else:
-                    def advance_flux(U,aux,dx,dy,dt,theta=None):
-                        U_adv,aux_adv = time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
-                        return time_step_dict[time_scheme](U_adv,aux_adv,dx,dy,dt,theta,wrapped_source_func,update_func)
+            #if dim == '1D':
+                #def wrapped_source_func(U,aux,dx,dt,theta=None):
+                    #return source_func(U,aux,dt,theta)
+                #def advance_flux(U,aux,dx,dt,theta=None):
+                    #U_adv,aux_adv = time_step_dict[time_scheme](U,aux,dx,dt,theta,flux_func,update_func)
+                    #return time_step_dict[time_scheme](U_adv,aux_adv,dx,dt,theta,wrapped_source_func,update_func)
+            #if dim == '2D':
+            def wrapped_source_func(U,aux,dx,dy,dt,theta=None):
+                return source_func(U,aux,dt,theta)
+            if is_amr:
+                def advance_flux(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
+                    field_adv = time_step_dict[time_scheme](level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta, flux_func, update_func)
+                    return time_step_dict[time_scheme](level, blk_data, dx, dy, dt, field_adv, ref_blk_info, theta, wrapped_source_func, update_func)
+            else:
+                def advance_flux(U,aux,dx,dy,dt,theta=None):
+                    U_adv,aux_adv = time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
+                    return time_step_dict[time_scheme](U_adv,aux_adv,dx,dy,dt,theta,wrapped_source_func,update_func)
 
     if is_detailed_chemistry:
-        if dim == '1D':
-            def advance_one_step(U,aux,dx,dt,theta=None):
-                U, aux = advance_flux(U,aux,dx,dt,theta)
+        #if dim == '1D':
+            #def advance_one_step(U,aux,dx,dt,theta=None):
+                #U, aux = advance_flux(U,aux,dx,dt,theta)
+                #dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
+                #U = U + dU
+                #aux = update_func(U, aux)
+                #return U, aux
+        #if dim == '2D':
+        if is_amr:
+            def advance_one_step(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
+                blk_data = advance_flux(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None)
+                U, aux = blk_data[:,0:-2],blk_data[:,-2:]
+                dU = vmap(reaction_model.reaction_source_terms,in_axes=(0,0,None,None))(U,aux,dt,theta)
+                U = U + dU
+                aux = update_func(U, aux)
+                return jnp.concatenate([U,aux],axis=1)
+        else:
+            def advance_one_step(U,aux,dx,dy,dt,theta=None):
+                U, aux = advance_flux(U,aux,dx,dy,dt,theta)
                 dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
                 U = U + dU
                 aux = update_func(U, aux)
                 return U, aux
-        if dim == '2D':
-            if is_amr:
-                def advance_one_step(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
-                    blk_data = advance_flux(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None)
-                    U, aux = blk_data[:,0:-2],blk_data[:,-2:]
-                    dU = vmap(reaction_model.reaction_source_terms,in_axes=(0,0,None,None))(U,aux,dt,theta)
-                    U = U + dU
-                    aux = update_func(U, aux)
-                    return jnp.concatenate([U,aux],axis=1)
-            else:
-                def advance_one_step(U,aux,dx,dy,dt,theta=None):
-                    U, aux = advance_flux(U,aux,dx,dy,dt,theta)
-                    dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
-                    U = U + dU
-                    aux = update_func(U, aux)
-                    return U, aux
     else:
         advance_one_step = advance_flux
     return advance_one_step
@@ -260,16 +262,19 @@ class Simulator:
             dt = time_control['dt']
             if dim == '1D':
                 dx = grid_config['dx']
-                def advance_func(U,aux,t):
-                    U, aux = advance_func_body(U,aux,dx,dt,theta)
-                    t = t + dt
-                    return U,aux,t,dt
+                dy = None
             if dim == '2D':
                 dx, dy = grid_config['dx'], grid_config['dy']
-                def advance_func(U,aux,t):
-                    U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
-                    t = t + dt
-                    return U,aux,t,dt
+                #def advance_func(U,aux,t):
+                    #U, aux = advance_func_body(U,aux,dx,None,dt,theta)
+                    #t = t + dt
+                    #return U,aux,t,dt
+            #if dim == '2D':
+                #dx, dy = grid_config['dx'], grid_config['dy']
+            def advance_func(U,aux,t):
+                U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
+                t = t + dt
+                return U,aux,t,dt
 
         if 'CFL' in time_control:
             CFL = time_control['CFL']
@@ -277,7 +282,7 @@ class Simulator:
                 dx = grid_config['dx']
                 def advance_func(U,aux,t):
                     dt = CFL_1D(U,aux,dx,CFL)
-                    U, aux = advance_func_body(U,aux,dx,dt,theta)
+                    U, aux = advance_func_body(U,aux,dx,None,dt,theta)
                     return U, aux, t+dt, dt
             if dim == '2D':
                 dx, dy = grid_config['dx'],grid_config['dy']
@@ -332,6 +337,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
