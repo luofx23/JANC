@@ -328,7 +328,8 @@ class Simulator:
 
         
         if is_amr:
-            self.advance_func = jit(advance_func_body,static_argnames='level')
+            self.amr_advance_func = jit(advance_func_body,static_argnames='level')
+            self.base_advance_func = jit(advance_func_body)
         else:
             self.advance_func = jit(advance_func)
 
@@ -372,6 +373,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
