@@ -164,10 +164,33 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
 
 
 class H5Saver:
-    def __init__(self, filepath: str | Path):
+    def __init__(self, filepath: str | Path, data_dim: str):
         self.filepath = Path(filepath)
         # 新建文件（如果已存在会覆盖）
         self.file = h5py.File(self.filepath, "a")
+        if data_dim == '1D':
+            def get_prim(U,aux):
+                aux = aux_func_1D.update_aux(U,aux)
+                rho,u,Y,p,a = aux_func_1D.U_to_prim(U,aux)
+                q = {'density':rho[0],
+                     'x-velocity':u[0],
+                     'pressure':p[0],
+                     'tempreature':aux[1],
+                     'species':Y}
+                return q
+            self.get_prim = get_prim
+        if data_dim == '2D':
+            def get_prim(U,aux):
+                aux = aux_func_2D.update_aux(U,aux)
+                rho,u,v,Y,p,a = aux_func_2D.U_to_prim(U,aux)
+                q = {'density':rho[0],
+                     'x-velocity':u[0],
+                     'y-velocity':v[0],
+                     'pressure':p[0],
+                     'tempreature':aux[1],
+                     'species':Y}
+                return q
+            self.get_prim = get_prim
 
     def save(self, save_step: int, t: float, step: int, **arrays: jnp.ndarray):
         """
@@ -202,13 +225,18 @@ class H5Saver:
         out = {}
         for name in grp.keys():
             out[name] = jnp.array(grp[name][:])
-        return out, dict(grp.attrs)
+        U_init = jnp.array(out['u'])
+        gamma_init = jnp.full_like(U_init[0:1],1.4)
+        T_init = jnp.full_like(gamma_init,500.0)
+        aux_init = jnp.concatenate([gamma_init,T_init],axis=0)
+        prim = self.get_prim(U_init,aux_init)
+        meta = dict(grp.attrs)
+        time = meta['time']
+        self.file.close()
+        return time, prim
 
     def close(self):
         self.file.close()
-
-
-
 
 class Simulator:
     def __init__(self,simulation_config):
@@ -248,7 +276,7 @@ class Simulator:
             self.save_dt = self.t_end
             self.results_path = 'results.h5'
 
-        self.saver = H5Saver(self.results_path)
+        self.saver = H5Saver(self.results_path,dim)
         
         if 'solver_parameters' in simulation_config:
             theta = simulation_config['solver_parameters']
@@ -344,6 +372,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
