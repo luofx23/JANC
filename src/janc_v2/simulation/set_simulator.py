@@ -236,7 +236,7 @@ class Simulator:
         else:
             is_parallel = False
             is_amr = False
-            self.save_dt = t_end
+            self.save_dt = self.t_end
             self.results_path = 'results.h5'
 
         self.saver = H5Saver(self.results_path)
@@ -332,6 +332,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
