@@ -292,7 +292,7 @@ class Simulator:
         else:
             self.advance_func = jit(advance_func)
 
-    def run(self,U_init,aux_init,t_end,nt):
+    def run(self,U_init,aux_init):
         advance_func = self.advance_func
         U,aux = U_init,aux_init
         t = 0.0
@@ -334,6 +334,7 @@ class Simulator:
         #    t = tn
 
     
+
 
 
 
