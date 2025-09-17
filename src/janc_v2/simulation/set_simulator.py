@@ -12,6 +12,9 @@ from ..boundary import boundary
 from ..parallel import boundary as parallel_boundary
 from functools import partial
 from tqdm import tqdm
+import h5py
+import numpy as np
+from pathlib import Path
 
 def CFL_1D(U,aux,dx,cfl=0.30):
     _,u,_,_,a = aux_func_1D.U_to_prim(U,aux)
@@ -157,6 +160,47 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
         advance_one_step = advance_flux
     return advance_one_step
 
+
+class H5Saver:
+    def __init__(self, filepath: str | Path):
+        self.filepath = Path(filepath)
+        # 新建文件（如果已存在会覆盖）
+        self.file = h5py.File(self.filepath, "w")
+
+    def save(self, t: float, step: int, **arrays: jnp.ndarray):
+        """
+        保存一个时间步的数据
+        参数:
+            t: 当前时间
+            step: 当前步数
+            arrays: 需要保存的 JAX arrays，形式为 name=array
+        """
+        grp = self.file.create_group(f"t_{t:.6f}")
+        grp.attrs["time"] = t
+        grp.attrs["step"] = step
+        for name, arr in arrays.items():
+            arr_cpu = np.array(arr.block_until_ready())  # 拉回CPU
+            grp.create_dataset(name, data=arr_cpu, compression="gzip")
+        self.file.flush()  # 立即写盘，防止崩溃丢数据
+
+    def list_snapshots(self):
+        "返回所有存储的时间步名称"
+        return list(self.file.keys())
+
+    def load(self, key: str):
+        "加载指定时间步的数据，返回 dict"
+        grp = self.file[key]
+        out = {}
+        for name in grp.keys():
+            out[name] = jnp.array(grp[name][:])
+        return out, dict(grp.attrs)
+
+    def close(self):
+        self.file.close()
+
+
+
+
 class Simulator:
     def __init__(self,simulation_config):
         dim = simulation_config['dimension']
@@ -177,7 +221,7 @@ class Simulator:
             nondim_config = simulation_config['nondim_config']
         else:
             nondim_config = None
-        time_control = simulation_config['time_control']
+        time_control = simulation_config['time_config']
                     
         if 'computation_config' in simulation_config:
             computation_config = simulation_config['computation_config']
@@ -185,6 +229,9 @@ class Simulator:
             is_amr = computation_config['is_amr']
             if is_parallel and is_amr:
                 raise RuntimeError('The parallel version of AMR is currently unavaliable.')
+            output_settings = computation_config['output_settings']
+            self.save_dt = output_settings['save_dt']
+            self.results_path = output_settings['results_path']
         else:
             is_parallel = False
             is_amr = False
@@ -225,13 +272,21 @@ class Simulator:
                 def advance_func(U,aux,t):
                     dt = CFL_1D(U,aux,dx,CFL)
                     U, aux = advance_func_body(U,aux,dx,dt,theta)
-                    return U, aux, t+dt
+                    return U, aux, t+dt, dt
             if dim == '2D':
                 dx, dy = grid_config['dx'],grid_config['dy']
                 def advance_func(U,aux,t):
                     dt = CFL_2D(U,aux,dx,dy,CFL)
                     U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
-                    return U, aux, t+dt                    
+                    return U, aux, t+dt, dt
+
+        if 'nt' in time_control:
+            self.nt = time_control['nt']
+            self.t_end = None
+        if 't_end' in time_control:
+            self.nt = None
+            self.t_end = time_control['t_end']
+        
         if is_amr:
             self.advance_func = jit(advance_func,static_argnames='level')
         else:
@@ -241,9 +296,35 @@ class Simulator:
         advance_func = self.advance_func
         U,aux = U_init,aux_init
         t = 0.0
-        for step in tqdm(range(nt),desc="progress", unit="step"):
-            U, aux, t = advance_func(U,aux,t)
+        step = 0
+        save_dt = self.save_dt
+        next_save_time = save_dt
+        results_path = self.results_path
+        saver = H5Saver(results_path)
+        t_end = self.t_end
+        with tqdm(total=t_end, desc="Time Integration", unit="t") as pbar:
+            while t < t_end:
+                U, aux, t, dt = advance_func(U,aux,t)
+                step += 1
+                # 存储中间结果
+                if t >= next_save_time or t >= t_end:
+                    saver.save(t, step, u=U)  # 保存
+                    print(f"[SAVE] t = {t:.3f}, step = {step}")
+                    next_save_time += save_dt
+
+                # 更新进度条
+                pbar.update(float(dt))
+                # 防止 t 超过 total 后 tqdm 报警告
+                if t > t_end:
+                    pbar.n = pbar.total
+                    pbar.refresh()
+        saver.close()
         return U, aux, t
+                
+                
+        #for step in tqdm(range(nt),desc="progress", unit="step"):
+            #U, aux, t = advance_func(U,aux,t)
+        #return U, aux, t
         #pbar = tqdm(total=t_end, desc="Progress", unit="t")
         #while t < t_end:
         #    U, aux, tn = advance_func(U,aux,t)
@@ -253,6 +334,7 @@ class Simulator:
         #    t = tn
 
     
+
 
 
 
