@@ -303,23 +303,25 @@ class Simulator:
         results_path = self.results_path
         saver = H5Saver(results_path)
         t_end = self.t_end
-        with tqdm(total=t_end, desc="Time Integration", unit="t") as pbar:
+        bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
+        with tqdm(total=t_end, desc="Simulation", bar_format=bar_format) as pbar:
             while t < t_end:
                 U, aux, t, dt = advance_func(U,aux,t)
                 step += 1
                 # 存储中间结果
                 if t >= next_save_time or t >= t_end:
                     saver.save(save_step, t, step, u=U)  # 保存
-                    print(f"[SAVE] t = {t:.3f}, step = {step}")
+                    tqdm.write(f"[SAVE] t = {t:.3e}, step = {step}")
                     next_save_time += save_dt
                     save_step += 1
 
                 # 更新进度条
-                pbar.update(float(dt))
                 # 防止 t 超过 total 后 tqdm 报警告
                 if t > t_end:
                     pbar.n = pbar.total
                     pbar.refresh()
+                else:
+                    pbar.update(float(dt))
         saver.close()
         return U, aux, t
                 
@@ -336,6 +338,7 @@ class Simulator:
         #    t = tn
 
     
+
 
 
 
