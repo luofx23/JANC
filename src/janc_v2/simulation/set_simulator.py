@@ -298,7 +298,7 @@ class Simulator:
         t = 0.0
         step = 0
         save_step = 1
-        saver.save(save_step=0, t=t, step=step, u=U)
+        self.saver.save(save_step=0, t=t, step=step, u=U)
         save_dt = self.save_dt
         next_save_time = save_dt
         t_end = self.t_end
@@ -309,7 +309,7 @@ class Simulator:
                 step += 1
                 # 存储中间结果
                 if t >= next_save_time or t >= t_end:
-                    saver.save(save_step, t, step, u=U)  # 保存
+                    self.saver.save(save_step, t, step, u=U)  # 保存
                     #tqdm.write(f"[SAVE] t = {t:.3e}, step = {step}")
                     next_save_time += save_dt
                     save_step += 1
@@ -332,6 +332,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
