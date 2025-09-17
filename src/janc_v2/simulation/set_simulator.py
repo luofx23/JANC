@@ -387,10 +387,12 @@ def AMR_Simulator(simulation_config):
     reaction_model.set_reaction(reaction_config,nondim_config,dim)
     flux.set_flux_solver(flux_config,transport_config,nondim_config)
     boundary.set_boundary(boundary_config,dim)
-    flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
+    flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,False,True)
     advance_func_amr = set_advance_func(dim,flux_config,reaction_config,time_control,True,flux_func,update_func,source_func)
+    flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,False,False)
     advance_func_base = set_advance_func(dim,flux_config,reaction_config,time_control,False,flux_func,update_func,source_func)
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
