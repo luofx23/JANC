@@ -263,13 +263,13 @@ class Simulator:
                 def advance_func(U,aux,t):
                     U, aux = advance_func_body(U,aux,dx,dt,theta)
                     t = t + dt
-                    return U,aux,t
+                    return U,aux,t,dt
             if dim == '2D':
                 dx, dy = grid_config['dx'], grid_config['dy']
                 def advance_func(U,aux,t):
                     U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
                     t = t + dt
-                    return U,aux,t
+                    return U,aux,t,dt
 
         if 'CFL' in time_control:
             CFL = time_control['CFL']
@@ -332,6 +332,7 @@ class Simulator:
         #T_init = jnp.full_like(U_init[0:1],500)
         #gamma_init = jnp.full_like(T_init,1.40)
         #aux_init = 
+
 
 
 
