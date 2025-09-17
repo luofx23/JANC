@@ -303,7 +303,7 @@ class Simulator:
         results_path = self.results_path
         saver = H5Saver(results_path)
         t_end = self.t_end
-        bar_format = "{l_bar}{bar}| {n_fmt:.4e}/{total_fmt:.4e} [{elapsed}<{remaining}]"
+        bar_format = "{l_bar}{bar}| {n_fmt:4.0e}/{total_fmt:4.0e} [{elapsed}<{remaining}]"
         with tqdm(total=t_end, desc="Simulation", bar_format=bar_format) as pbar:
             while t < t_end:
                 U, aux, t, dt = advance_func(U,aux,t)
@@ -336,3 +336,4 @@ class Simulator:
         #    pbar.update(dt)  
         #    pbar.set_postfix({"t": f"{tn:.3f}", "dt": f"{dt:.3e}"})
         #    t = tn
+
