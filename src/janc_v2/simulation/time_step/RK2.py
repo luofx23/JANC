@@ -3,10 +3,10 @@ import jax.numpy as jnp
 from jaxamr import amr
 
 def advance_one_step(U,aux,dx,dy,dt,theta,rhs_func,update_func):
-    dev = rhs(U,aux,dx,dy,dt,theta)
+    dev = rhs_func(U,aux,dx,dy,dt,theta)
     U1 = U + dev
     aux1 = update_func(U1, aux)
-    dev1 = rhs(U1,aux1,dx,dy,dt,theta)
+    dev1 = rhs_func(U1,aux1,dx,dy,dt,theta)
     U2 = U + 1/2*(dev + dev1)
     aux2 = update_func(U2, aux1)
     return U2,aux2
