@@ -111,7 +111,7 @@ def reactionConstant_i(T, X, i, k, n):
     Mn = species_M[n]
     Xn = jnp.expand_dims(X[n],0)
     dwk_drhonYn_OverMk_i = (vb_ik-vf_ik)*(kf-kb)*(ain/Mn) + 1/(Mn*Xn)*(vb_ik-vf_ik)*aij_X_sum*(vf_in*kf-vb_in*kb)
-    print(kf.shape)
+    print(kf_i.shape,log_X.shape,vf_i.shape)
     return w_kOverM_i, dwk_drhonYn_OverMk_i
 
 def reaction_rate_with_derievative(T,X,k,n):
@@ -195,6 +195,7 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
