@@ -278,7 +278,7 @@ class Simulator:
             if 'is_parallel' in computation_config:
                 is_parallel = computation_config['is_parallel']
                 num_devices = len(jax.devices())
-                mesh = jax.make_mesh((num_devices,))
+                mesh = jax.make_mesh((num_devices,),axis_names=('x',))
                 if is_parallel and (theta is not None):
                     assert 'PartitionDict' in computation_config, "A python dict specifying the partition axes of theta should be provided!"
                     raw_dict = computation_config['PartitionDict']
@@ -448,6 +448,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
