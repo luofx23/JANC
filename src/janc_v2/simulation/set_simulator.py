@@ -260,11 +260,34 @@ class Simulator:
             nondim_config = None
         time_control = simulation_config['time_config']
         self.t_end = time_control['t_end']
-                    
+
+        if 'solver_parameters' in simulation_config:
+            theta = simulation_config['solver_parameters']
+        else:
+            theta = None
+
         if 'computation_config' in simulation_config:
             computation_config = simulation_config['computation_config']
             if 'is_parallel' in computation_config:
                 is_parallel = computation_config['is_parallel']
+                if is_parallel and (theta is not None):
+                    assert 'PartitionDict' in computation_config, "A python dict specifying the partition axes of theta should be provided!"
+                    raw_dict = computation_config['PartitionDict']
+                    PartitionDict = {}
+                    for key, axis in raw_dict.items():
+                        n = len(jnp.shape(theta[key]))
+                        if n == 0:
+                            PartitionDict[key] = P()
+                        else:
+                            if axis == None:
+                                tup = tuple(None for i in range(n))
+                            else:
+                                tup = tuple('x' if i == axis else None for i in range(n))
+                            PartitionDict[key] = P(*tup)
+                    num_devices = len(jax.devices())
+                    mesh = jax.make_mesh((num_devices,))
+                else:
+                    PartitionDict = P()
             else:
                 is_parallel = False
 
@@ -279,11 +302,6 @@ class Simulator:
             self.save_dt = self.t_end
             self.results_path = 'results.h5'
         self.saver = H5Saver(self.results_path,dim)
-        
-        if 'solver_parameters' in simulation_config:
-            theta = simulation_config['solver_parameters']
-        else:
-            theta = None
             
         thermo_model.set_thermo(thermo_config,nondim_config,dim)
         reaction_model.set_reaction(reaction_config,nondim_config,dim)
@@ -292,9 +310,26 @@ class Simulator:
         if dim == '2D':
             flux.set_flux_solver(flux_config,transport_config,nondim_config)
         boundary.set_boundary(boundary_config,dim)
+        is_amr = False
         flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
         advance_func_body = set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_func,update_func,source_func)
-        
+        if is_parallel:
+            advance_func_body = jax.shard_map(advance_func_body,
+                                              mesh=mesh,
+                                              in_specs=(P(None,'x',None,None),P(None,'x',None,None),P(),P(),P(),PartitionDict),
+                                              out_specs = (P(None,'x',None,None),P(None,'x',None,None)),
+                                              check_vma=False)
+            CFL_1D_body = jax.shard_map(CFL_1D,mesh=mesh,in_specs=(P(None,'x'),P(None,'x'),P(),P(None,)),out_specs=P('x',),check_vma=False)
+            CFL_2D_body = jax.shard_map(CFL_2D,mesh=mesh,in_specs=(P(None,'x'),P(None,'x'),P(),P(),P(None,)),out_specs=P('x',),check_vma=False)
+            def CFL_1D(U,aux,dx,cfl):
+                cfl = jax.array([cfl])
+                dt = CFL_1D_body(U,aux,dx,cfl)
+                return jnp.min(dt)
+            def CFL_2D(U,aux,dx,dy,cfl):
+                cfl = jax.array([cfl])
+                dt = CFL_2D_body(U,aux,dx,dy,cfl)
+                return jnp.min(dt)
+                
         if 'dt' in time_control:
             dt = time_control['dt']
             if dim == '1D':
@@ -322,12 +357,7 @@ class Simulator:
                     U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
                     return U, aux, t+dt, dt
 
-        
-        if is_amr:
-            self.amr_advance_func = jit(advance_func_body,static_argnames='level')
-            self.base_advance_func = jit(advance_func_body)
-        else:
-            self.advance_func = jit(advance_func)
+        self.advance_func = jit(advance_func)
 
     def run(self,U_init,aux_init):
         advance_func = self.advance_func
@@ -397,6 +427,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
