@@ -118,6 +118,7 @@ def reaction_rate_with_derievative(T,X,k,n):
     Mk = species_M[k]
     i = jnp.arange(ReactionParams["num_of_reactions"])
     w_kOverM_i, dwk_drhonYn_OverMk_i = vmap(reactionConstant_i,in_axes=(None,None,0,None,None))(T,X,i,k,n)
+    print(w_kOverM_i.shape)
     w_k = Mk*jnp.sum(w_kOverM_i,axis=0,keepdims=False)
     dwk_drhonYn = Mk*jnp.sum(dwk_drhonYn_OverMk_i,axis=0,keepdims=False)
     return w_k[0], dwk_drhonYn[0]
@@ -194,6 +195,7 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
