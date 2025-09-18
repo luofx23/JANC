@@ -235,6 +235,45 @@ class H5Saver:
         self.file.close()
         return time, prim
 
+    def load_all(self):
+        # 如果文件已经关闭就重新以只读方式打开
+        if not self.file or not self.file.id.valid:
+            self.file = h5py.File(self.filepath, 'r')
+    
+        # 按 step 排序
+        steps = sorted(self.file.keys(), key=lambda x: int(x))
+    
+        # 先读取第一个 step，确定有哪些变量
+        first_group = self.file[steps[0]]
+        var_names = list(first_group.keys())
+    
+        # 为每个变量收集所有 step 的数据
+        data = {name: [] for name in var_names}
+        meta_names = list(dict(first_group.attrs).keys())
+        meta = {name: [] for name in meta_names}
+        for step in steps:
+            grp = self.file[step]
+            mt = dict(grp.attrs)
+            for name in var_names:
+                data[name].append(np.array(grp[name]))
+            for name in meta_names:
+                meta[name].append(np.array(mt[name])) 
+    
+        # 在第0维堆叠
+        for name in var_names:
+            data[name] = np.stack(data[name], axis=0)
+        for name in meta_names:
+            meta[name] = np.stack(meta[name],axis=0)
+
+        U_init = jnp.array(data['u'])
+        gamma_init = jnp.full_like(U_init[:,0:1],1.4)
+        T_init = jnp.full_like(gamma_init,500.0)
+        aux_init = jnp.concatenate([gamma_init,T_init],axis=1)
+        prim = jnp.vmap(self.get_prim,in_axes=(0,0))(U_init,aux_init)
+        time = meta['time']
+        self.file.close()
+        return time,prim
+
     def close(self):
         self.file.close()
 
@@ -428,6 +467,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
