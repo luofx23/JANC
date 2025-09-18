@@ -292,6 +292,7 @@ class Simulator:
                 is_parallel = False
 
             if 'output_settings' in computation_config:
+                output_settings = computation_config['output_settings']
                 self.save_dt = output_settings['save_dt']
                 self.results_path = output_settings['results_path']
             else:
@@ -427,6 +428,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
