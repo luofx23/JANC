@@ -232,7 +232,7 @@ class H5Saver:
         prim = self.get_prim(U_init,aux_init)
         meta = dict(grp.attrs)
         time = meta['time']
-        #self.file.close()
+        self.file.close()
         return time, prim
 
     def close(self):
@@ -428,6 +428,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
