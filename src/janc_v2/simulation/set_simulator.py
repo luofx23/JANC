@@ -16,17 +16,6 @@ import h5py
 import numpy as np
 from pathlib import Path
 
-def CFL_1D(U,aux,dx,cfl=0.30):
-    _,u,_,_,a = aux_func_1D.U_to_prim(U,aux)
-    sx = jnp.abs(u) + a
-    return cfl*jnp.min(dx/sx)
-
-def CFL_2D(U,aux,dx,dy,cfl=0.30):
-    _,u,v,_,_,a = aux_func.U_to_prim(U,aux)
-    sx = jnp.abs(u) + a
-    sy = jnp.abs(v) + a
-    dt = cfl*jnp.min(1/(sx/dx + sy/dy))
-    return dt
     
 def set_rhs(dim,reaction_config,source_config=None,is_parallel=False,is_amr=False):
     if dim == '1D':
@@ -93,20 +82,8 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
         else:
             def advance_flux(U,aux,dx,dy,dt,theta=None):
                 return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
-            #if dim == '1D':
-                #def advance_flux(U,aux,dx,dy,dt,theta=None):
-                    #return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
-            #if dim == '2D':
-                #def advance_flux(U,aux,dx,dy,dt,theta=None):
-                    #return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,flux_func,update_func)
     else:
         if solver_type == 'flux_splitting':
-            #if dim == '1D':
-                #def rhs_func(U,aux,dx,dt,theta=None):
-                    #return flux_func(U,aux,dx,dt,theta) + source_func(U,aux,dt,theta)
-                #def advance_flux(U,aux,dx,dt,theta=None):
-                    #return time_step_dict[time_scheme](U,aux,dx,dt,theta,rhs_func,update_func)
-            #if dim == '2D':
             def rhs_func(U,aux,dx,dy,dt,theta=None):
                 return flux_func(U,aux,dx,dy,dt,theta) + source_func(U,aux,dt,theta)
             if is_amr:
@@ -116,13 +93,6 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
                 def advance_flux(U,aux,dx,dy,dt,theta=None):
                     return time_step_dict[time_scheme](U,aux,dx,dy,dt,theta,rhs_func,update_func)
         if solver_type == 'godunov':
-            #if dim == '1D':
-                #def wrapped_source_func(U,aux,dx,dt,theta=None):
-                    #return source_func(U,aux,dt,theta)
-                #def advance_flux(U,aux,dx,dt,theta=None):
-                    #U_adv,aux_adv = time_step_dict[time_scheme](U,aux,dx,dt,theta,flux_func,update_func)
-                    #return time_step_dict[time_scheme](U_adv,aux_adv,dx,dt,theta,wrapped_source_func,update_func)
-            #if dim == '2D':
             def wrapped_source_func(U,aux,dx,dy,dt,theta=None):
                 return source_func(U,aux,dt,theta)
             if is_amr:
@@ -135,14 +105,6 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
                     return time_step_dict[time_scheme](U_adv,aux_adv,dx,dy,dt,theta,wrapped_source_func,update_func)
 
     if is_detailed_chemistry:
-        #if dim == '1D':
-            #def advance_one_step(U,aux,dx,dt,theta=None):
-                #U, aux = advance_flux(U,aux,dx,dt,theta)
-                #dU = reaction_model.reaction_source_terms(U,aux,dt,theta)
-                #U = U + dU
-                #aux = update_func(U, aux)
-                #return U, aux
-        #if dim == '2D':
         if is_amr:
             def advance_one_step(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None):
                 blk_data = advance_flux(level, blk_data, dx, dy, dt, ref_blk_data, ref_blk_info, theta=None)
@@ -309,11 +271,14 @@ class Simulator:
             theta = simulation_config['solver_parameters']
         else:
             theta = None
+        self.theta = theta
 
         if 'computation_config' in simulation_config:
             computation_config = simulation_config['computation_config']
             if 'is_parallel' in computation_config:
                 is_parallel = computation_config['is_parallel']
+                num_devices = len(jax.devices())
+                mesh = jax.make_mesh((num_devices,))
                 if is_parallel and (theta is not None):
                     assert 'PartitionDict' in computation_config, "A python dict specifying the partition axes of theta should be provided!"
                     raw_dict = computation_config['PartitionDict']
@@ -328,8 +293,6 @@ class Simulator:
                             else:
                                 tup = tuple('x' if i == axis else None for i in range(n))
                             PartitionDict[key] = P(*tup)
-                    num_devices = len(jax.devices())
-                    mesh = jax.make_mesh((num_devices,))
                 else:
                     PartitionDict = P()
             else:
@@ -358,22 +321,6 @@ class Simulator:
         is_amr = False
         flux_func, update_func, source_func = set_rhs(dim,reaction_config,source_config,is_parallel,is_amr)
         advance_func_body = set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_func,update_func,source_func)
-        if is_parallel:
-            advance_func_body = jax.shard_map(advance_func_body,
-                                              mesh=mesh,
-                                              in_specs=(P(None,'x',None,None),P(None,'x',None,None),P(),P(),P(),PartitionDict),
-                                              out_specs = (P(None,'x',None,None),P(None,'x',None,None)),
-                                              check_vma=False)
-            CFL_1D_body = jax.shard_map(CFL_1D,mesh=mesh,in_specs=(P(None,'x'),P(None,'x'),P(),P(None,)),out_specs=P('x',),check_vma=False)
-            CFL_2D_body = jax.shard_map(CFL_2D,mesh=mesh,in_specs=(P(None,'x'),P(None,'x'),P(),P(),P(None,)),out_specs=P('x',),check_vma=False)
-            def CFL_1D(U,aux,dx,cfl):
-                cfl = jax.array([cfl])
-                dt = CFL_1D_body(U,aux,dx,cfl)
-                return jnp.min(dt)
-            def CFL_2D(U,aux,dx,dy,cfl):
-                cfl = jax.array([cfl])
-                dt = CFL_2D_body(U,aux,dx,dy,cfl)
-                return jnp.min(dt)
                 
         if 'dt' in time_control:
             dt = time_control['dt']
@@ -382,7 +329,7 @@ class Simulator:
                 dy = None
             if dim == '2D':
                 dx, dy = grid_config['dx'], grid_config['dy']
-            def advance_func(U,aux,t):
+            def advance_func(U,aux,t,theta):
                 U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
                 t = t + dt
                 return U,aux,t,dt
@@ -391,21 +338,50 @@ class Simulator:
             CFL = time_control['CFL']
             if dim == '1D':
                 dx = grid_config['dx']
-                def advance_func(U,aux,t):
+                if is_parallel:
+                    def CFL_1D(U,aux,dx,cfl=0.30):
+                        _,u,_,_,a = aux_func_1D.U_to_prim(U,aux)
+                        sx = jnp.abs(u) + a
+                        return cfl*jax.lax.pmin(dx/sx,axis_name='x')
+                else:
+                    def CFL_1D(U,aux,dx,cfl=0.30):
+                        _,u,_,_,a = aux_func_1D.U_to_prim(U,aux)
+                        sx = jnp.abs(u) + a
+                        return cfl*jnp.min(dx/sx)
+                def advance_func(U,aux,t,theta):
                     dt = CFL_1D(U,aux,dx,CFL)
                     U, aux = advance_func_body(U,aux,dx,None,dt,theta)
                     return U, aux, t+dt, dt
             if dim == '2D':
                 dx, dy = grid_config['dx'],grid_config['dy']
-                def advance_func(U,aux,t):
+                if is_parallel:
+                    def CFL_2D(U,aux,dx,dy,cfl=0.30):
+                        _,u,v,_,_,a = aux_func.U_to_prim(U,aux)
+                        sx = jnp.abs(u) + a
+                        sy = jnp.abs(v) + a
+                        dt = cfl*jax.lax.pmin(1/(sx/dx + sy/dy),axis_name='x')
+                        return dt
+                else:
+                    def CFL_2D(U,aux,dx,dy,cfl=0.30):
+                        _,u,v,_,_,a = aux_func.U_to_prim(U,aux)
+                        sx = jnp.abs(u) + a
+                        sy = jnp.abs(v) + a
+                        dt = cfl*jnp.min(1/(sx/dx + sy/dy))
+                        return dt
+                def advance_func(U,aux,t,theta):
                     dt = CFL_2D(U,aux,dx,dy,CFL)
                     U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
                     return U, aux, t+dt, dt
-
+        if is_parallel:
+            advance_func = jax.shard_map(advance_func,mesh=mesh,
+                                         in_specs=(P(None,'x',None),P(None,'x',None),P(),PartitionDict),
+                                         out_specs=(P(None,'x',None),P(None,'x',None),P(),P()),
+                                         check_vma=False)
         self.advance_func = jit(advance_func)
 
     def run(self,U_init,aux_init):
         advance_func = self.advance_func
+        theta = self.theta
         U, aux = U_init,aux_init
         t = 0.0
         step = 0
@@ -417,7 +393,7 @@ class Simulator:
         bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
         with tqdm(total=t_end, desc="Simulation", bar_format=bar_format) as pbar:
             while t < t_end:
-                U, aux, t, dt = advance_func(U,aux,t)
+                U, aux, t, dt = advance_func(U,aux,t,theta)
                 step += 1
 
                 if t >= next_save_time or t >= t_end:
@@ -472,6 +448,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
