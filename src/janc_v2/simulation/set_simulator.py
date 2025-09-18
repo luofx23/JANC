@@ -239,9 +239,14 @@ class H5Saver:
         # 如果文件已经关闭就重新以只读方式打开
         if not self.file or not self.file.id.valid:
             self.file = h5py.File(self.filepath, 'r')
-    
+        def extract_step(s):
+            # 去掉非数字字符，只保留数字
+            digits = ''.join(ch for ch in s if ch.isdigit())
+            return int(digits)
+
+        steps = sorted(self.file.keys(), key=extract_step)
         # 按 step 排序
-        steps = sorted(self.file.keys(), key=lambda x: int(x))
+        #steps = sorted(self.file.keys(), key=lambda x: int(x))
     
         # 先读取第一个 step，确定有哪些变量
         first_group = self.file[steps[0]]
@@ -467,6 +472,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
