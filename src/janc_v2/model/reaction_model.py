@@ -28,13 +28,14 @@ s_cof_high = None
 logcof_low = None
 logcof_high = None
 nr = None
+nY = None
 ReactionParams = {}
 self_defined_source = None
 source_func_type = 'detailed'
 dimensions = '2D'
 
 def set_reaction(reaction_config,nondim_config=None,dim='2D'):
-    global dimensions,source_func_type,self_defined_source,ReactionParams,nr,species_M,Mex,Tcr,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
+    global nY,dimensions,source_func_type,self_defined_source,ReactionParams,nr,species_M,Mex,Tcr,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high
     dimensions = dim
     source_func_type = 'detailed'
     if reaction_config['is_detailed_chemistry']:
@@ -63,6 +64,13 @@ def set_reaction(reaction_config,nondim_config=None,dim='2D'):
     else:
         species_list = ['N2']
         mech = 'gri30.yaml'
+
+    if dim == '1D':
+        nY = 3
+    if dim == '2D':
+        nY = 4
+    if dim == '3D':
+        nY = 5
      
     species_M,Mex,Tcr,_,_,_,_,_,_,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config,dimensions)
 
@@ -176,14 +184,14 @@ def construct_matrix_equation(T,X,dt):
 
 def detailed_reaction(U,aux,dt,theta=None):
     rho = U[0:1]
-    Y = fill_Y(U[4:]/rho)
+    Y = fill_Y(U[nY:]/rho)
     rhoY = rho*Y
     T = aux[1:2]
     X = rhoY/(Mex)
     drhoY = construct_matrix_equation(T,X,dt)
     dY = drhoY/rho
     dY = jnp.clip(dY,min=-Y[0:-1],max=1-Y[0:-1])
-    S = jnp.concatenate([jnp.zeros_like(U[:4]),rho*dY],axis=0)
+    S = jnp.concatenate([jnp.zeros_like(U[:nY]),rho*dY],axis=0)
     return S
 
 def user_reaction(U,aux,dt,theta=None):
@@ -195,6 +203,7 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
