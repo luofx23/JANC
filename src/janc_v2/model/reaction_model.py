@@ -54,7 +54,7 @@ def set_reaction(reaction_config,nondim_config=None,dim='2D'):
             source_func_type = 'user_defined'
         
     if reaction_config['is_detailed_chemistry']:
-        ReactionParams = read_reaction_mechanism(reaction_config['mechanism_directory'],nondim_config)
+        ReactionParams = read_reaction_mechanism(reaction_config['mechanism_directory'],nondim_config,dimensions)
         mech = reaction_config['mechanism_directory']
         species_list = ReactionParams['species']
         ns = ReactionParams['num_of_species']
@@ -64,7 +64,7 @@ def set_reaction(reaction_config,nondim_config=None,dim='2D'):
         species_list = ['N2']
         mech = 'gri30.yaml'
      
-    species_M,Mex,Tcr,_,_,_,_,_,_,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config)
+    species_M,Mex,Tcr,_,_,_,_,_,_,h_cof_low_chem,h_cof_high_chem,s_cof_low,s_cof_high,logcof_low,logcof_high = get_cantera_coeffs(species_list,mech,nondim_config,dimensions)
 
 
 def get_gibbs_single(Tcr,h_cof_low,h_cof_high,s_cof_low,s_cof_high,logcof_low,logcof_high,T):
@@ -195,6 +195,7 @@ reaction_func_dict = {'detailed':detailed_reaction,
 
 def reaction_source_terms(U,aux,dt,theta=None):
     return reaction_func_dict[source_func_type](U,aux,dt,theta)
+
 
 
 
