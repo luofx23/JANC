@@ -274,7 +274,7 @@ class H5Saver:
         gamma_init = jnp.full_like(U_init[:,0:1],1.4)
         T_init = jnp.full_like(gamma_init,500.0)
         aux_init = jnp.concatenate([gamma_init,T_init],axis=1)
-        prim = jnp.vmap(self.get_prim,in_axes=(0,0))(U_init,aux_init)
+        prim = vmap(self.get_prim,in_axes=(0,0))(U_init,aux_init)
         time = meta['time']
         self.file.close()
         return time,prim
@@ -472,6 +472,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
