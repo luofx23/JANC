@@ -148,4 +148,70 @@ def set_grid_2D(grid_config):
         metrics['dη_dy'] = 1/dy
     return metrics
 
+def get_inv(a11,a12,a13,a21,a22,a23,a31,a32,a33):
+	J = a11*a22*a33-a11*a23*a32-a12*a21*a33+a12*a23*a31+a13*a21*a32-a13*a22*a31
+	b11 = a22*a33-a23*a32
+	b12 = a13*a32-a12*a33
+	b13 = a12*a23-a13*a22
+	b21 = a23*a31-a21*a33
+	b22 = a11*a33-a13*a31
+	b23 = a13*a21-a11*a23
+	b31 = a21*a32-a22*a31
+	b32 = a12*a31-a11*a32
+	b33 = a11*a22-a12*a21
+	return b11/J,b12/J,b13/J,b21/J,b22/J,b23/J,b31/J,b32/J,b33/J,J
+	
+def set_grid_3D(grid_config):
+	X,Y,Z = read_CGNS(grid_config['grid_file_path'])
+	nx,ny,nz = X.shape[0]-1,X.shape[1]-1,X.shape[2]-1
+	x1,y1,z1 = X[:-1,:-1,:-1],Y[:-1,:-1,:-1],Z[:-1,:-1,:-1]
+	x2,y2,z2 = X[1:,:-1,:-1],Y[1:,:-1,:-1],Z[1:,:-1,:-1]
+	x3,y3,z3 = X[:-1,1:,:-1],Y[:-1,1:,:-1],Z[:-1,1:,:-1]
+	x4,y4,z4 = X[:-1,:-1,1:],Y[:-1,:-1,1:],Z[:-1,:-1,1:]
+	V1 = jnp.stack([x2-x1,y2-y1,z2-z1],axis=0)
+	V2 = jnp.stack([x3-x1,y3-y1,z3-z1],axis=0)
+	V3 = jnp.stack([x4-x1,y4-y1,z4-z1],axis=0)
+	n = jnp.cross(V1,V2,axis=0)
+	n_norm = jnp.linalg.norm(n,axis=0)
+	ζ_n_x,ζ_n_y,ζ_n_z = n[0]/n_norm,n[1]/n_norm,n[2]/n_norm
+	n = jnp.cross(V3,V1,axis=0)
+	n_norm = jnp.linalg.norm(n,axis=0)
+	η_n_x,η_n_y,η_n_z = n[0]/n_norm,n[1]/n_norm,n[2]/n_norm
+	n = jnp.cross(V2,V3,axis=0)
+	n_norm = jnp.linalg.norm(n,axis=0)
+	ξ_n_x,ξ_n_y,ξ_n_z = n[0]/n_norm,n[1]/n_norm,n[2]/n_norm
+	ζ_τ1_x,ζ_τ1_y,ζ_τ1_z = V1[0],V1[1],V1[2]
+	ζ_τ2_x,ζ_τ2_y,ζ_τ2_z = V2[0],V2[1],V2[2]
+	η_τ1_x,η_τ1_y,η_τ1_z = V3[0],V3[1],V3[2]
+	η_τ2_x,η_τ2_y,η_τ2_z = V1[0],V1[1],V1[2]
+	ξ_τ1_x,ξ_τ1_y,ξ_τ1_z = V2[0],V2[1],V2[2]
+	ξ_τ2_x,ξ_τ2_y,ξ_τ2_z = V3[0],V3[1],V3[2]
+	ξ11,ξ12,ξ13,ξ21,ξ22,ξ23,ξ31,ξ32,ξ33,_ = get_inv(ξ_n_x,ξ_n_y,ξ_n_z,ξ_τ1_x,ξ_τ1_y,ξ_τ1_z,ξ_τ2_x,ξ_τ2_y,ξ_τ2_z)
+	η11,η12,η13,η21,η22,η23,η31,η32,η33,_ = get_inv(η_τ1_x,η_τ1_y,η_τ1_z,η_n_x,η_n_y,η_n_z,η_τ2_x,η_τ2_y,η_τ2_z)
+	ζ11,ζ12,ζ13,ζ21,ζ22,ζ23,ζ31,ζ32,ζ33,_ = get_inv(ζ_τ1_x,ζ_τ1_y,ζ_τ1_z,ζ_τ2_x,ζ_τ2_y,ζ_τ2_z,ζ_n_x,ζ_n_y,ζ_n_z)
+	xf, yf, zf = X[1:],Y[1:],Z[1:]
+	xb, yb, zb = X[:-1],Y[:-1],Z[:-1]
+	d_x,d_y,d_z = xf-xb,yf-yb,zf-zb
+	d_x,d_y,d_z = 0.5*(d_x[:,1:]+d_x[:,:-1]),0.5*(d_y[:,1:]+d_y[:,:-1]),0.5*(d_z[:,1:]+d_z[:,:-1])
+	dx_dξ,dy_dξ,dz_dξ = 0.5*(d_x[:,:,1:]+d_x[:,:,:-1]),0.5*(d_y[:,:,1:]+d_y[:,:,:-1]),0.5*(d_z[:,:,1:]+d_z[:,:,:-1])
+	xf, yf, zf = X[:,1:],Y[:,1:],Z[:,1:]
+	xb, yb, zb = X[:,:-1],Y[:,:-1],Z[:,:-1]
+	d_x,d_y,d_z = xf-xb,yf-yb,zf-zb
+	d_x,d_y,d_z = 0.5*(d_x[1:]+d_x[:-1]),0.5*(d_y[1:]+d_y[:-1]),0.5*(d_z[1:]+d_z[:-1])
+	dx_dη,dy_dη,dz_dη = 0.5*(d_x[:,:,1:]+d_x[:,:,:-1]),0.5*(d_y[:,:,1:]+d_y[:,:,:-1]),0.5*(d_z[:,:,1:]+d_z[:,:,:-1])
+	xf, yf, zf = X[:,:,1:],Y[:,:,1:],Z[:,:,1:]
+	xb, yb, zb = X[:,:,:-1],Y[:,:,:-1],Z[:,:,:-1]
+	d_x,d_y,d_z = xf-xb,yf-yb,zf-zb
+	d_x,d_y,d_z = 0.5*(d_x[1:]+d_x[:-1]),0.5*(d_y[1:]+d_y[:-1]),0.5*(d_z[1:]+d_z[:-1])
+	dx_dζ,dy_dζ,dz_dζ = 0.5*(d_x[:,1:]+d_x[:,:-1]),0.5*(d_y[:,1:]+d_y[:,:-1]),0.5*(d_z[:,1:]+d_z[:,:-1])
+	dξ_dx,dη_dx,dζ_dx,dξ_dy,dη_dy,dζ_dy,dξ_dz,dη_dz,dζ_dz,J = get_inv(dx_dξ,dy_dξ,dz_dξ,dx_dη,dy_dη,dz_dη,dx_dζ,dy_dζ,dz_dζ)
+	
+	
+	
+	
+	
+	
+
+
+
 
