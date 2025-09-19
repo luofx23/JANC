@@ -420,7 +420,10 @@ class Simulator:
                 step += 1
 
                 if t >= next_save_time or t >= t_end:
-                    self.saver.save(save_step, t, step, u=U)
+                    if self.is_parallel:
+                        self.saver.parallel_save(save_step, t, step, u=U)
+                    else:
+                        self.saver.save(save_step, t, step, u=U)
                     next_save_time += save_dt
                     save_step += 1
 
@@ -470,6 +473,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
