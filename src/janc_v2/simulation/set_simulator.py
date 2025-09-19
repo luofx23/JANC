@@ -1,6 +1,5 @@
 import jax
-from jax.sharding import Mesh, PartitionSpec as P
-from jax import vmap,jit
+from jax import vmap,jit,pmap
 import jax.numpy as jnp
 from .time_step import time_step_dict
 from ..solver_1D import flux as flux_1D
@@ -10,6 +9,7 @@ from ..solver_2D import aux_func #as aux_func
 from ..model import thermo_model,reaction_model,transport_model
 from ..boundary import boundary
 from ..parallel import boundary as parallel_boundary
+from ..parallel.grid_partion import split_and_distribute_grid
 from functools import partial
 from tqdm import tqdm
 import h5py
@@ -128,8 +128,8 @@ def set_advance_func(dim,flux_config,reaction_config,time_control,is_amr,flux_fu
 class H5Saver:
     def __init__(self, filepath: str | Path, data_dim: str):
         self.filepath = Path(filepath)
-        # 新建文件（如果已存在会覆盖）
         self.file = h5py.File(self.filepath, "a")
+        
         if data_dim == '1D':
             def get_prim(U,aux):
                 aux = aux_func_1D.update_aux(U,aux)
@@ -174,6 +174,24 @@ class H5Saver:
             arr_cpu = np.array(arr.block_until_ready())  # 拉回CPU
             grp.create_dataset(name, data=arr_cpu, compression="gzip")
         self.file.flush()  # 立即写盘，防止崩溃丢数据
+
+    def parallel_save(self, save_step: int, t: float, step: int, **arrays: jnp.ndarray):
+        key = f"save_step{save_step}"
+        if key in self.file:
+            del self.file[key]
+
+        @partial(pmap,axis_name='x',in_axes=(None,0))
+        def save_fcn(key, arr):
+            device_id = jax.lax.axis_index('x')
+            key = key + f"_device{device_id}"
+            grp = self.file.create_group(key)
+            #grp = self.file.create_group(f"save_step{save_step}")
+            grp.attrs["time"] = t
+            grp.attrs["step"] = step
+            for name, arr in arrays.items():
+                arr_cpu = np.array(arr.block_until_ready())  # 拉回CPU
+                grp.create_dataset(name, data=arr_cpu, compression="gzip")
+            self.file.flush()
 
     def list_snapshots(self):
         "返回所有存储的时间步名称"
@@ -278,23 +296,22 @@ class Simulator:
             if 'is_parallel' in computation_config:
                 is_parallel = computation_config['is_parallel']
                 num_devices = len(jax.devices())
-                mesh = jax.make_mesh((num_devices,),axis_names=('x',))
                 if is_parallel and (theta is not None):
                     assert 'PartitionDict' in computation_config, "A python dict specifying the partition axes of theta should be provided!"
-                    raw_dict = computation_config['PartitionDict']
-                    PartitionDict = {}
-                    for key, axis in raw_dict.items():
-                        n = len(jnp.shape(theta[key]))
-                        if n == 0:
-                            PartitionDict[key] = P()
-                        else:
-                            if axis == None:
-                                tup = tuple(None for i in range(n))
-                            else:
-                                tup = tuple('x' if i == axis else None for i in range(n))
-                            PartitionDict[key] = P(*tup)
+                    PartitionDict = computation_config['PartitionDict']
+                    #PartitionDict = {}
+                    #for key, axis in raw_dict.items():
+                        #n = len(jnp.shape(theta[key]))
+                        #if n == 0:
+                            #PartitionDict[key] = P()
+                        #else:
+                            #if axis == None:
+                                #tup = tuple(None for i in range(n))
+                            #else:
+                                #tup = tuple('x' if i == axis else None for i in range(n))
+                            #PartitionDict[key] = P(*tup)
                 else:
-                    PartitionDict = P()
+                    PartitionDict = None#P()
             else:
                 is_parallel = False
 
@@ -309,6 +326,7 @@ class Simulator:
             is_parallel = False
             self.save_dt = self.t_end
             self.results_path = 'results.h5'
+        self.is_parallel = is_parallel
         self.saver = H5Saver(self.results_path,dim)
             
         thermo_model.set_thermo(thermo_config,nondim_config,dim)
@@ -373,16 +391,21 @@ class Simulator:
                     U, aux = advance_func_body(U,aux,dx,dy,dt,theta)
                     return U, aux, t+dt, dt
         if is_parallel:
-            advance_func = jax.shard_map(advance_func,mesh=mesh,
-                                         in_specs=(P(None,'x',None),P(None,'x',None),P(),PartitionDict),
-                                         out_specs=(P(None,'x',None),P(None,'x',None),P(),P()),
-                                         check_vma=False)
-        self.advance_func = jit(advance_func)
+            #advance_func = jax.shard_map(advance_func,mesh=mesh,
+                                         #in_specs=(P(None,'x',None),P(None,'x',None),P(),PartitionDict),
+                                         #out_specs=(P(None,'x',None),P(None,'x',None),P(),P()),
+                                         #check_vma=False)
+            self.advance_func = pmap(advance_func,axis_name='x',in_axes=(0, 0, None, PartitionDict),out_axes=(0, 0, None, None))
+        else:
+            self.advance_func = jit(advance_func)
 
     def run(self,U_init,aux_init):
         advance_func = self.advance_func
         theta = self.theta
         U, aux = U_init,aux_init
+        if self.is_parallel:
+            U = split_and_distribute_grid(U)
+            aux = split_and_distribute_grid(aux)
         t = 0.0
         step = 0
         save_step = 1
@@ -397,8 +420,7 @@ class Simulator:
                 step += 1
 
                 if t >= next_save_time or t >= t_end:
-                    self.saver.save(save_step, t, step, u=U)  # 保存
-                    #tqdm.write(f"[SAVE] t = {t:.3e}, step = {step}")
+                    self.saver.save(save_step, t, step, u=U)
                     next_save_time += save_dt
                     save_step += 1
 
@@ -448,6 +470,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
