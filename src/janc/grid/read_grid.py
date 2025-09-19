@@ -160,7 +160,10 @@ def get_inv(a11,a12,a13,a21,a22,a23,a31,a32,a33):
 	b32 = a12*a31-a11*a32
 	b33 = a11*a22-a12*a21
 	return b11/J,b12/J,b13/J,b21/J,b22/J,b23/J,b31/J,b32/J,b33/J,J
-	
+
+def expand_ghost(a):
+	return jnp.pad(a[None,:],((0,0),(3,3),(3,3),(3,3)),mode='edge')
+
 def set_grid_3D(grid_config):
 	X,Y,Z = read_CGNS(grid_config['grid_file_path'])
 	nx,ny,nz = X.shape[0]-1,X.shape[1]-1,X.shape[2]-1
@@ -211,12 +214,23 @@ def set_grid_3D(grid_config):
 	top_n_x,top_n_y,top_n_z = -η_n_x[-1:],-η_n_y[-1:],-η_n_z[-1:]
 	front_n_x,front_n_y,front_n_z = ζ_n_x[0:1],ζ_n_y[0:1],ζ_n_z[0:1]
 	back_n_x,back_n_y,back_n_z = -ζ_n_x[-1:],-ζ_n_y[-1:],-ζ_n_z[-1:]
+	Jc = expand_ghost(J)
+	dξ_dx = expand_ghost(dξ_dx)
+	dη_dx = expand_ghost(dη_dx)
+	dζ_dx = expand_ghost(dζ_dx)
+	dξ_dy = expand_ghost(dξ_dy)
+	dη_dy = expand_ghost(dη_dy)
+	dζ_dy = expand_ghost(dζ_dy)
+	dξ_dz = expand_ghost(dξ_dz)
+	dη_dz = expand_ghost(dη_dz)
+	dζ_dz = expand_ghost(dζ_dz)
 	
 	
 	
 	
 	
 	
+
 
 
 
