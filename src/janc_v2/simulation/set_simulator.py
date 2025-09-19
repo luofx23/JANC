@@ -197,6 +197,61 @@ class H5Saver:
         "返回所有存储的时间步名称"
         return list(self.file.keys())
 
+    def collect(self, concat_axis: int = 1):
+        """
+        在原 HDF5 文件里，把每个时间步的所有设备 group concat 后
+        写入新的 group，命名为 save_step{step}。
+        """
+        with h5py.File(self.filepath, 'a') as f:
+            # step -> list of group names
+            step_groups_map = defaultdict(list)
+
+            # 遍历所有 group
+            for gname in f.keys():
+                if gname.startswith("save_step") and "_device" in gname:
+                    step_str = gname.split("_device")[0]  # e.g., "save_step1"
+                    step_groups_map[step_str].append(gname)
+
+            # 对每个 step 按设备号排序
+            for step, groups in step_groups_map.items():
+                groups.sort(key=lambda x: int(x.split("_device")[-1]))
+
+            # 遍历每个 step，将设备数据 concat 后写入新 group
+            for step, groups in step_groups_map.items():
+                collected_step = {}
+                attrs = {}
+
+                # 收集每个 key 的数组，并保留 attrs
+                for gname in groups:
+                    grp = f[gname]
+                    # 记录 attrs（以最后一个设备为准）
+                    attrs = dict(grp.attrs)
+                    for key in grp.keys():
+                        arr = np.array(grp[key])
+                        if key not in collected_step:
+                            collected_step[key] = [arr]
+                        else:
+                            collected_step[key].append(arr)
+
+                # concat 每个 key
+                for key in collected_step:
+                    collected_step[key] = np.concatenate(collected_step[key], axis=concat_axis)
+
+                # 新 group 名称
+                new_group_name = step
+                if new_group_name in f:
+                    del f[new_group_name]  # 避免冲突
+                new_grp = f.create_group(new_group_name)
+
+                # 写 attrs
+                for k, v in attrs.items():
+                    new_grp.attrs[k] = v
+
+                # 写数据
+                for key, arr in collected_step.items():
+                    new_grp.create_dataset(key, data=arr, compression="gzip")
+            f.flush()
+
     def load(self, key: str):
         "加载指定时间步的数据，返回 dict"
         if not self.file or not self.file.id.valid:
@@ -403,13 +458,15 @@ class Simulator:
         advance_func = self.advance_func
         theta = self.theta
         U, aux = U_init,aux_init
-        if self.is_parallel:
-            U = split_and_distribute_grid(U)
-            aux = split_and_distribute_grid(aux)
         t = 0.0
         step = 0
         save_step = 1
-        self.saver.save(save_step=0, t=t, step=step, u=U)
+        if self.is_parallel:
+            U = split_and_distribute_grid(U)
+            aux = split_and_distribute_grid(aux)
+            self.saver.parallel_save(save_step=0, t=t, step=step, u=U)
+        else:
+            self.saver.save(save_step=0, t=t, step=step, u=U)
         save_dt = self.save_dt
         next_save_time = save_dt
         t_end = self.t_end
@@ -473,6 +530,7 @@ def AMR_Simulator(simulation_config):
         blk_data = jnp.array([jnp.concatenate([U,aux],axis=0)])
         return blk_data
     return jit(advance_func_amr,static_argnames='level'),jit(advance_func_base)
+
 
 
 
