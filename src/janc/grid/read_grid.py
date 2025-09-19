@@ -205,12 +205,19 @@ def set_grid_3D(grid_config):
 	d_x,d_y,d_z = 0.5*(d_x[1:]+d_x[:-1]),0.5*(d_y[1:]+d_y[:-1]),0.5*(d_z[1:]+d_z[:-1])
 	dx_dζ,dy_dζ,dz_dζ = 0.5*(d_x[:,1:]+d_x[:,:-1]),0.5*(d_y[:,1:]+d_y[:,:-1]),0.5*(d_z[:,1:]+d_z[:,:-1])
 	dξ_dx,dη_dx,dζ_dx,dξ_dy,dη_dy,dζ_dy,dξ_dz,dη_dz,dζ_dz,J = get_inv(dx_dξ,dy_dξ,dz_dξ,dx_dη,dy_dη,dz_dη,dx_dζ,dy_dζ,dz_dζ)
+	left_n_x,left_n_y,left_n_z = ξ_n_x[0:1],ξ_n_y[0:1],ξ_n_z[0:1]
+	right_n_x,right_n_y,right_n_z = -ξ_n_x[-1:],-ξ_n_y[-1:],-ξ_n_z[-1:]
+	bottom_n_x,bottom_n_y,bottom_n_z = η_n_x[0:1],η_n_y[0:1],η_n_z[0:1]
+	top_n_x,top_n_y,top_n_z = -η_n_x[-1:],-η_n_y[-1:],-η_n_z[-1:]
+	front_n_x,front_n_y,front_n_z = ζ_n_x[0:1],ζ_n_y[0:1],ζ_n_z[0:1]
+	back_n_x,back_n_y,back_n_z = -ζ_n_x[-1:],-ζ_n_y[-1:],-ζ_n_z[-1:]
 	
 	
 	
 	
 	
 	
+
 
 
 
