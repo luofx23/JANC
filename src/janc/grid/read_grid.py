@@ -164,31 +164,67 @@ def get_inv(a11,a12,a13,a21,a22,a23,a31,a32,a33):
 def expand_ghost(a):
 	return jnp.pad(a[None,:],((0,0),(3,3),(3,3),(3,3)),mode='edge')
 
+def get_face_area(P1,P2,P3,P4):
+	V1 = P2 - P1
+	V2 = P3 - P1
+	V3 = P4 - P1
+	cross1 = jnp.cross(V1,V2,axis=0)
+	cross2 = jnp.cross(V2,V3,axis=0)
+	A123 = 0.5*jnp.linalg.norm(cross1,axis=0)
+	A134 = 0.5*jnp.linalg.norm(cross2,axis=0)
+	return A123 + A134
+
 def set_grid_3D(grid_config):
 	X,Y,Z = read_CGNS(grid_config['grid_file_path'])
 	nx,ny,nz = X.shape[0]-1,X.shape[1]-1,X.shape[2]-1
-	x1,y1,z1 = X[:-1,:-1,:-1],Y[:-1,:-1,:-1],Z[:-1,:-1,:-1]
-	x2,y2,z2 = X[1:,:-1,:-1],Y[1:,:-1,:-1],Z[1:,:-1,:-1]
-	x3,y3,z3 = X[:-1,1:,:-1],Y[:-1,1:,:-1],Z[:-1,1:,:-1]
-	x4,y4,z4 = X[:-1,:-1,1:],Y[:-1,:-1,1:],Z[:-1,:-1,1:]
-	V1 = jnp.stack([x2-x1,y2-y1,z2-z1],axis=0)
-	V2 = jnp.stack([x3-x1,y3-y1,z3-z1],axis=0)
-	V3 = jnp.stack([x4-x1,y4-y1,z4-z1],axis=0)
+	x1, y1, z1 = X[:,:-1,:-1],Y[:,:-1,:-1],Z[:,:-1,:-1]
+	x2, y2, z2 = X[:,1:,:-1],Y[:,1:,:-1],Z[:,1:,:-1]
+	x3, y3, z3 = X[:,1:,1:],Y[:,1:,1:],Z[:,1:,1:]
+	x4, y4, z4 = X[:,:-1,1:],Y[:,:-1,1:],Z[:,:-1,1:]
+	P1 = jnp.stack([x1,y1,z1],axis=0)
+	P2 = jnp.stack([x2,y2,z2],axis=0)
+	P3 = jnp.stack([x3,y3,z3],axis=0)
+	P4 = jnp.stack([x4,y4,z4],axis=0)
+	ξ_dA = get_face_area(P1,P2,P3,P4)
+	V1 = P2-P1
+	V2 = P3-P1
+	n = jnp.cross(V1,V2,axis=0)
+	n_norm = jnp.linalg.norm(n,axis=0)
+	ξ_n_x,ξ_n_y,ξ_n_z = n[0]/n_norm,n[1]/n_norm,n[2]/n_norm
+	ξ_τ1_x,ξ_τ1_y,ξ_τ1_z = V1[0],V1[1],V1[2]
+	ξ_τ2_x,ξ_τ2_y,ξ_τ2_z = V2[0],V2[1],V2[2]
+	x1, y1, z1 = X[:-1,:,:-1],Y[:-1,:,:-1],Z[:-1,:,:-1]
+	x2, y2, z2 = X[1:,:,:-1],Y[1:,:,:-1],Z[1:,:,:-1]
+	x3, y3, z3 = X[1:,:,1:],Y[1:,:,1:],Z[1:,:,1:]
+	x4, y4, z4 = X[:-1,:,1:],Y[:-1,:,1:],Z[:-1,:,1:]
+	P1 = jnp.stack([x1,y1,z1],axis=0)
+	P2 = jnp.stack([x2,y2,z2],axis=0)
+	P3 = jnp.stack([x3,y3,z3],axis=0)
+	P4 = jnp.stack([x4,y4,z4],axis=0)
+	η_dA = get_face_area(P1,P2,P3,P4)
+	V1 = P3-P1
+	V2 = P2-P1
+	n = jnp.cross(V1,V2,axis=0)
+	n_norm = jnp.linalg.norm(n,axis=0)
+	η_n_x,η_n_y,η_n_z = n[0]/n_norm,n[1]/n_norm,n[2]/n_norm
+	η_τ1_x,η_τ1_y,η_τ1_z = V1[0],V1[1],V1[2]
+	η_τ2_x,η_τ2_y,η_τ2_z = V2[0],V2[1],V2[2]
+	x1, y1, z1 = X[:-1,:-1:],Y[:-1,:-1],Z[:-1,:-1]
+	x2, y2, z2 = X[1:,:-1],Y[1:,:-1],Z[1:,:-1]
+	x3, y3, z3 = X[1:,1:],Y[1:,1:],Z[1:,1:]
+	x4, y4, z4 = X[:-1,1:],Y[:-1,1:],Z[:-1,1:]
+	P1 = jnp.stack([x1,y1,z1],axis=0)
+	P2 = jnp.stack([x2,y2,z2],axis=0)
+	P3 = jnp.stack([x3,y3,z3],axis=0)
+	P4 = jnp.stack([x4,y4,z4],axis=0)
+	ζ_dA = get_face_area(P1,P2,P3,P4)
+	V1 = P2-P1
+	V2 = P3-P1
 	n = jnp.cross(V1,V2,axis=0)
 	n_norm = jnp.linalg.norm(n,axis=0)
 	ζ_n_x,ζ_n_y,ζ_n_z = n[0]/n_norm,n[1]/n_norm,n[2]/n_norm
-	n = jnp.cross(V3,V1,axis=0)
-	n_norm = jnp.linalg.norm(n,axis=0)
-	η_n_x,η_n_y,η_n_z = n[0]/n_norm,n[1]/n_norm,n[2]/n_norm
-	n = jnp.cross(V2,V3,axis=0)
-	n_norm = jnp.linalg.norm(n,axis=0)
-	ξ_n_x,ξ_n_y,ξ_n_z = n[0]/n_norm,n[1]/n_norm,n[2]/n_norm
 	ζ_τ1_x,ζ_τ1_y,ζ_τ1_z = V1[0],V1[1],V1[2]
 	ζ_τ2_x,ζ_τ2_y,ζ_τ2_z = V2[0],V2[1],V2[2]
-	η_τ1_x,η_τ1_y,η_τ1_z = V3[0],V3[1],V3[2]
-	η_τ2_x,η_τ2_y,η_τ2_z = V1[0],V1[1],V1[2]
-	ξ_τ1_x,ξ_τ1_y,ξ_τ1_z = V2[0],V2[1],V2[2]
-	ξ_τ2_x,ξ_τ2_y,ξ_τ2_z = V3[0],V3[1],V3[2]
 	ξ11,ξ12,ξ13,ξ21,ξ22,ξ23,ξ31,ξ32,ξ33,_ = get_inv(ξ_n_x,ξ_n_y,ξ_n_z,ξ_τ1_x,ξ_τ1_y,ξ_τ1_z,ξ_τ2_x,ξ_τ2_y,ξ_τ2_z)
 	η11,η12,η13,η21,η22,η23,η31,η32,η33,_ = get_inv(η_τ1_x,η_τ1_y,η_τ1_z,η_n_x,η_n_y,η_n_z,η_τ2_x,η_τ2_y,η_τ2_z)
 	ζ11,ζ12,ζ13,ζ21,ζ22,ζ23,ζ31,ζ32,ζ33,_ = get_inv(ζ_τ1_x,ζ_τ1_y,ζ_τ1_z,ζ_τ2_x,ζ_τ2_y,ζ_τ2_z,ζ_n_x,ζ_n_y,ζ_n_z)
@@ -210,10 +246,10 @@ def set_grid_3D(grid_config):
 	dξ_dx,dη_dx,dζ_dx,dξ_dy,dη_dy,dζ_dy,dξ_dz,dη_dz,dζ_dz,J = get_inv(dx_dξ,dy_dξ,dz_dξ,dx_dη,dy_dη,dz_dη,dx_dζ,dy_dζ,dz_dζ)
 	left_n_x,left_n_y,left_n_z = ξ_n_x[0:1],ξ_n_y[0:1],ξ_n_z[0:1]
 	right_n_x,right_n_y,right_n_z = -ξ_n_x[-1:],-ξ_n_y[-1:],-ξ_n_z[-1:]
-	bottom_n_x,bottom_n_y,bottom_n_z = η_n_x[0:1],η_n_y[0:1],η_n_z[0:1]
-	top_n_x,top_n_y,top_n_z = -η_n_x[-1:],-η_n_y[-1:],-η_n_z[-1:]
-	front_n_x,front_n_y,front_n_z = ζ_n_x[0:1],ζ_n_y[0:1],ζ_n_z[0:1]
-	back_n_x,back_n_y,back_n_z = -ζ_n_x[-1:],-ζ_n_y[-1:],-ζ_n_z[-1:]
+	bottom_n_x,bottom_n_y,bottom_n_z = η_n_x[:,0:1],η_n_y[:,0:1],η_n_z[:,0:1]
+	top_n_x,top_n_y,top_n_z = -η_n_x[:,-1:],-η_n_y[:,-1:],-η_n_z[:,-1:]
+	front_n_x,front_n_y,front_n_z = ζ_n_x[:,:,0:1],ζ_n_y[:,:,0:1],ζ_n_z[:,:,0:1]
+	back_n_x,back_n_y,back_n_z = -ζ_n_x[:,:,-1:],-ζ_n_y[:,:,-1:],-ζ_n_z[:,:,-1:]
 	Jc = expand_ghost(J)
 	dξ_dx = expand_ghost(dξ_dx)
 	dη_dx = expand_ghost(dη_dx)
@@ -224,12 +260,28 @@ def set_grid_3D(grid_config):
 	dξ_dz = expand_ghost(dξ_dz)
 	dη_dz = expand_ghost(dη_dz)
 	dζ_dz = expand_ghost(dζ_dz)
+	metrics={'ξ-n_x':split_face(ξ_n_x[None,:]),'ξ-n_y':split_face(ξ_n_y[None,:]),'ξ-n_z':split_face(ξ_n_z[None,:]),
+			 'η-n_x':split_and_distribute_grid(η_n_x[None,:]),'η-n_y':split_and_distribute_grid(η_n_y[None,:]),'η-n_z':split_and_distribute_grid(η_n_z[None,:]),
+			 'ζ-n_x':split_and_distribute_grid(ζ_n_x[None,:]),'ζ-n_y':split_and_distribute_grid(ζ_n_y[None,:]),'ζ-n_z':split_and_distribute_grid(ζ_n_z[None,:]),
+			 'ξ-dA':split_face(ξ_dA[None,:]),'η-dA':split_and_distribute_grid(η_dA[None,:]),'ζ-dA':split_and_distribute_grid(ζ_dA[None,:]),
+			 'J':split_and_distribute_grid(J[None,:]),'Jc':split_ghost_grid(Jc),
+			 'dξ_dx':split_ghost_grid(dξ_dx),'dη_dx':split_ghost_grid(dη_dx),'dζ_dx':split_ghost_grid(dζ_dx),
+			 'dξ_dy':split_ghost_grid(dξ_dy),'dη_dy':split_ghost_grid(dη_dy),'dζ_dy':split_ghost_grid(dζ_dy),
+			 'dξ_dz':split_ghost_grid(dξ_dz),'dη_dz':split_ghost_grid(dη_dz),'dζ_dz':split_ghost_grid(dζ_dz),
+			 'left_n_x':left_n_x[None,:],'left_n_y':left_n_y[None,:],'left_n_z':left_n_z[None,:],
+			 'right_n_x':right_n_x[None,:],'right_n_y':right_n_y[None,:],'right_n_z':right_n_z[None,:],
+			 'bottom_n_x':split_and_distribute_grid(bottom_n_x[None,:]),'bottom_n_y':split_and_distribute_grid(bottom_n_y[None,:]),'bottom_n_z':split_and_distribute_grid(bottom_n_z[None,:]),
+			 'top_n_x':split_and_distribute_grid(top_n_x[None,:]),'top_n_y':split_and_distribute_grid(top_n_y[None,:]),'top_n_z':split_and_distribute_grid(top_n_z[None,:]),
+			 'front_n_x':split_and_distribute_grid(front_n_x[None,:]),'front_n_y':split_and_distribute_grid(front_n_y[None,:]),'front_n_z':split_and_distribute_grid(front_n_z[None,:]),
+			 'back_n_x':split_and_distribute_grid(back_n_x[None,:]),'back_n_y':split_and_distribute_grid(back_n_y[None,:]),'back_n_z':split_and_distribute_grid(back_n_z[None,:])
+			}
 	
 	
 	
 	
 	
 	
+
 
 
 
