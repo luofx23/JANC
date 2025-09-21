@@ -233,16 +233,19 @@ def set_grid_3D(grid_config):
 	d_x,d_y,d_z = xf-xb,yf-yb,zf-zb
 	d_x,d_y,d_z = 0.5*(d_x[:,1:]+d_x[:,:-1]),0.5*(d_y[:,1:]+d_y[:,:-1]),0.5*(d_z[:,1:]+d_z[:,:-1])
 	dx_dξ,dy_dξ,dz_dξ = 0.5*(d_x[:,:,1:]+d_x[:,:,:-1]),0.5*(d_y[:,:,1:]+d_y[:,:,:-1]),0.5*(d_z[:,:,1:]+d_z[:,:,:-1])
+	dx = dx_dξ
 	xf, yf, zf = X[:,1:],Y[:,1:],Z[:,1:]
 	xb, yb, zb = X[:,:-1],Y[:,:-1],Z[:,:-1]
 	d_x,d_y,d_z = xf-xb,yf-yb,zf-zb
 	d_x,d_y,d_z = 0.5*(d_x[1:]+d_x[:-1]),0.5*(d_y[1:]+d_y[:-1]),0.5*(d_z[1:]+d_z[:-1])
 	dx_dη,dy_dη,dz_dη = 0.5*(d_x[:,:,1:]+d_x[:,:,:-1]),0.5*(d_y[:,:,1:]+d_y[:,:,:-1]),0.5*(d_z[:,:,1:]+d_z[:,:,:-1])
+	dy = dy_dη
 	xf, yf, zf = X[:,:,1:],Y[:,:,1:],Z[:,:,1:]
 	xb, yb, zb = X[:,:,:-1],Y[:,:,:-1],Z[:,:,:-1]
 	d_x,d_y,d_z = xf-xb,yf-yb,zf-zb
 	d_x,d_y,d_z = 0.5*(d_x[1:]+d_x[:-1]),0.5*(d_y[1:]+d_y[:-1]),0.5*(d_z[1:]+d_z[:-1])
 	dx_dζ,dy_dζ,dz_dζ = 0.5*(d_x[:,1:]+d_x[:,:-1]),0.5*(d_y[:,1:]+d_y[:,:-1]),0.5*(d_z[:,1:]+d_z[:,:-1])
+	dz = dz_dζ
 	dξ_dx,dη_dx,dζ_dx,dξ_dy,dη_dy,dζ_dy,dξ_dz,dη_dz,dζ_dz,J = get_inv(dx_dξ,dy_dξ,dz_dξ,dx_dη,dy_dη,dz_dη,dx_dζ,dy_dζ,dz_dζ)
 	left_n_x,left_n_y,left_n_z = ξ_n_x[0:1],ξ_n_y[0:1],ξ_n_z[0:1]
 	right_n_x,right_n_y,right_n_z = -ξ_n_x[-1:],-ξ_n_y[-1:],-ξ_n_z[-1:]
@@ -260,6 +263,9 @@ def set_grid_3D(grid_config):
 	dξ_dz = expand_ghost(dξ_dz)
 	dη_dz = expand_ghost(dη_dz)
 	dζ_dz = expand_ghost(dζ_dz)
+	dx = expand_ghost(dx)
+	dy = expand_ghost(dy)
+	dz = expand_ghost(dz)
 	metrics={'ξ-n_x':split_face(ξ_n_x[None,:]),'ξ-n_y':split_face(ξ_n_y[None,:]),'ξ-n_z':split_face(ξ_n_z[None,:]),
 			 'η-n_x':split_and_distribute_grid(η_n_x[None,:]),'η-n_y':split_and_distribute_grid(η_n_y[None,:]),'η-n_z':split_and_distribute_grid(η_n_z[None,:]),
 			 'ζ-n_x':split_and_distribute_grid(ζ_n_x[None,:]),'ζ-n_y':split_and_distribute_grid(ζ_n_y[None,:]),'ζ-n_z':split_and_distribute_grid(ζ_n_z[None,:]),
@@ -268,6 +274,7 @@ def set_grid_3D(grid_config):
 			 'dξ_dx':split_ghost_grid(dξ_dx),'dη_dx':split_ghost_grid(dη_dx),'dζ_dx':split_ghost_grid(dζ_dx),
 			 'dξ_dy':split_ghost_grid(dξ_dy),'dη_dy':split_ghost_grid(dη_dy),'dζ_dy':split_ghost_grid(dζ_dy),
 			 'dξ_dz':split_ghost_grid(dξ_dz),'dη_dz':split_ghost_grid(dη_dz),'dζ_dz':split_ghost_grid(dζ_dz),
+			 'dx':split_ghost_grid(dx),'dy':split_ghost_grid(dy),'dz':split_ghost_grid(dz),
 			 'left_n_x':left_n_x[None,:],'left_n_y':left_n_y[None,:],'left_n_z':left_n_z[None,:],
 			 'right_n_x':right_n_x[None,:],'right_n_y':right_n_y[None,:],'right_n_z':right_n_z[None,:],
 			 'bottom_n_x':split_and_distribute_grid(bottom_n_x[None,:]),'bottom_n_y':split_and_distribute_grid(bottom_n_y[None,:]),'bottom_n_z':split_and_distribute_grid(bottom_n_z[None,:]),
@@ -281,6 +288,7 @@ def set_grid_3D(grid_config):
 	
 	
 	
+
 
 
 
