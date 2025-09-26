@@ -142,10 +142,10 @@ def kappa(mu,cp,mu_t):
     return kappa_dict[k_type](mu,cp,mu_t)
 
 def D_Le(mu,rho,cp_i,mu_t):
-    k_i = (k_type=='Prandtl number')*mu/Pr + (k_type=='constant')*k0/cp_i
-    rhoD_i = k_i/Le*cp_i
+    k_i = (k_type=='Prandtl number')*mu*cp_i/Pr + (k_type=='constant')*k0
+    rhoD_i = k_i/(Le*cp_i)
     k_t = mu_t/Pr_t
-    rhoD_t = k_t/Le_t*cp_i
+    rhoD_t = k_t/(Le_t*cp_i)
     return (rhoD_i+rhoD_t)/rho
 
 def D_constant(mu,rho,cp_i,mu_t):
@@ -164,6 +164,7 @@ def D(mu,rho,cp_i,mu_t):
     
     
     
+
 
 
 
